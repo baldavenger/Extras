@@ -1,0 +1,11 @@
+# DaVinci Resolve specific libraries
+
+OFXPATH ?= $(TOP_SRCDIR)/openfx
+OFXSEXTPATH ?= $(TOP_SRCDIR)/SupportExt
+
+PATHTOROOT = $(OFXPATH)/Support
+
+include $(PATHTOROOT)/Plugins/Makefile.master
+
+CXXFLAGS += -I$(OFXSEXTPATH)
+VPATH += $(OFXSEXTPATH)
