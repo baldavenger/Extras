@@ -72,7 +72,6 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <BrowseInformation>true</BrowseInformation>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -91,9 +90,6 @@ copy /Y "$(TargetPath)" /B "$(OutDir)BalancePlugin.ofx.bundle\Contents\Win64\Bal
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
     </CudaCompile>
-    <Bscmake>
-      <PreserveSbr>true</PreserveSbr>
-    </Bscmake>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -139,6 +135,10 @@ copy /Y "$(TargetPath)" /B "$(OutDir)BalancePlugin.ofx.bundle\Contents\Win64\Bal
     <ClCompile Include="..\SupportExt\ofxsLut.cpp" />
     <ClCompile Include="..\SupportExt\ofxsRectangleInteract.cpp" />
     <ClCompile Include="BalancePlugin.cpp" />
+    <ClCompile Include="BalancePluginOpenCLKernel.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="BalancePluginCudaKernel.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

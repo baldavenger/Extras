@@ -221,7 +221,7 @@ float* DisplayAlpha, float* LumaRec, float* LumaAvg, const float* p_Input, float
 		CheckError(error, "Unable to create program");
 
 		error = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-#ifdef _DEBUG
+/*#ifdef _DEBUG
 		error = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 		if (error != CL_SUCCESS)
 		{
@@ -250,9 +250,9 @@ float* DisplayAlpha, float* LumaRec, float* LumaAvg, const float* p_Input, float
 			}
 			fclose(pFile);
 		}
-#else
+#else*/
 		CheckError(error, "Unable to build program");
-#endif
+//#endif
 
 		kernel = clCreateKernel(program, "BalanceAdjustKernel", &error);
 		CheckError(error, "Unable to create kernel");
