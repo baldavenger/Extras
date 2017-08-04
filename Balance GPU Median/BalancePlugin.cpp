@@ -148,7 +148,7 @@ enum BalanceTypeEnum
 
 #define kParamAnalyzeFrameLuma "analyzeFrameLuma"
 #define kParamAnalyzeFrameLumaLabel "Analyze Frame Luma"
-#define kParamAnalyzeFrameLumaHint "Analyze current frame and set min/max luma values."
+#define kParamAnalyzeFrameLumaHint "Analyze current frame and set MIN/MAX luma values."
 
 #define kParamClearFrameLuma "clearFrameLuma"
 #define kParamClearFrameLumaLabel "Reset"
@@ -170,7 +170,7 @@ enum BalanceTypeEnum
 #define kParamLuminanceMathOptionAverage "Average"
 #define kParamLuminanceMathOptionAverageHint "Use average of r, g, b."
 #define kParamLuminanceMathOptionMaximum "Max"
-#define kParamLuminanceMathOptionMaximumHint "Use max or r, g, b."
+#define kParamLuminanceMathOptionMaximumHint "Use MAX or r, g, b."
 
 enum LuminanceMathEnum
 {
@@ -226,8 +226,8 @@ struct RGBdub
 struct Results
 {
     Results()
-    : min( std::numeric_limits<float>::infinity() )
-    , max( -std::numeric_limits<float>::infinity() )
+    : MIN( std::numeric_limits<float>::infinity() )
+    , MAX( -std::numeric_limits<float>::infinity() )
     , mean(0.)
     , median(0.)
     , maxVal( -std::numeric_limits<float>::infinity() )
@@ -236,8 +236,8 @@ struct Results
         maxPos.x = maxPos.y = minPos.x = minPos.y = 0.;
     }
 
-    RGBValues min;
-    RGBValues max;
+    RGBValues MIN;
+    RGBValues MAX;
     RGBValues mean;
     RGBValues median;
     OfxPointD maxPos; // luma only
@@ -299,8 +299,8 @@ protected:
             b = p[2];
             Color::rgb_to_hsv(r, g, b, &hsv[0], &hsv[1], &hsv[2]);
             hsv[0] *= 360 / OFXS_HUE_CIRCLE;
-            float min = std::fmin(std::fmin(r, g), b);
-            float max = std::fmax(std::fmax(r, g), b);
+            float MIN = std::min(std::min(r, g), b);
+            float MAX = std::max(std::max(r, g), b);
         } else {
             hsv[0] = hsv[1] = hsv[2] = 0.0f;
         }
@@ -497,16 +497,16 @@ class ImageMinMaxMeanProcessor
     : public BalanceProcessorBase
 {
 private:
-    float _min[nComponents];
-    float _max[nComponents];
+    float _MIN[nComponents];
+    float _MAX[nComponents];
     float _sum[nComponents];
 
 public:
     ImageMinMaxMeanProcessor(ImageEffect &instance)
         : BalanceProcessorBase(instance)
     {
-        std::fill( _min, _min + nComponents, +std::numeric_limits<float>::infinity() );
-        std::fill( _max, _max + nComponents, -std::numeric_limits<float>::infinity() );
+        std::fill( _MIN, _MIN + nComponents, +std::numeric_limits<float>::infinity() );
+        std::fill( _MAX, _MAX + nComponents, -std::numeric_limits<float>::infinity() );
         std::fill(_sum, _sum + nComponents, 0.);
     }
 
@@ -520,8 +520,8 @@ public:
     void getResults(Results *results) OVERRIDE FINAL
     {
         if (_count > 0) {
-            toRGB<float, nComponents, 1>(_min, &results->min);
-            toRGB<float, nComponents, 1>(_max, &results->max);
+            toRGB<float, nComponents, 1>(_MIN, &results->MIN);
+            toRGB<float, nComponents, 1>(_MAX, &results->MAX);
             float mean[nComponents];
             for (int c = 0; c < nComponents; ++c) {
                 mean[c] = _sum[c] / _count;
@@ -532,14 +532,14 @@ public:
 
 private:
 
-    void addResults(float min[nComponents],
-                    float max[nComponents],
+    void addResults(float MIN[nComponents],
+                    float MAX[nComponents],
                     float sum[nComponents],
                     unsigned long count)
     {
         for (int c = 0; c < nComponents; ++c) {
-            _min[c] = (std::fmin(_min[c], min[c])) / (float)maxValue;
-            _max[c] = (std::fmax(_max[c], max[c])) / (float)maxValue;
+            _MIN[c] = (std::min(_MIN[c], MIN[c])) / (float)maxValue;
+            _MAX[c] = (std::max(_MAX[c], MAX[c])) / (float)maxValue;
             _sum[c] += sum[c] / (float)maxValue;
         }
         _count += count;
@@ -547,10 +547,10 @@ private:
 
     void multiThreadProcessImages(OfxRectI procWindow) OVERRIDE FINAL
     {
-        float min[nComponents], max[nComponents], sum[nComponents];
+        float MIN[nComponents], MAX[nComponents], sum[nComponents];
 
-        std::fill( min, min + nComponents, +std::numeric_limits<float>::infinity() );
-        std::fill( max, max + nComponents, -std::numeric_limits<float>::infinity() );
+        std::fill( MIN, MIN + nComponents, +std::numeric_limits<float>::infinity() );
+        std::fill( MAX, MAX + nComponents, -std::numeric_limits<float>::infinity() );
         std::fill(sum, sum + nComponents, 0.);
         unsigned long count = 0;
 
@@ -568,8 +568,8 @@ private:
             for (int x = procWindow.x1; x < procWindow.x2; ++x) {
                 for (int c = 0; c < nComponents; ++c) {
                     float v = *dstPix;
-                    min[c] = std::fmin(min[c], v);
-                    max[c] = std::fmax(max[c], v);
+                    MIN[c] = std::min(MIN[c], v);
+                    MAX[c] = std::max(MAX[c], v);
                     sumLine[c] += v;
                     ++dstPix;
                 }
@@ -580,7 +580,7 @@ private:
             count += procWindow.x2 - procWindow.x1;
         }
 
-        addResults(min, max, sum, count);
+        addResults(MIN, MAX, sum, count);
     }
 };
 
@@ -620,16 +620,17 @@ private:
 	float temp, val;
 	int i, j;
 	for(i = 0; i < m - 1; i++) {
-			for(j = i + 1; j < m; j++) {
-				if(p_Table[j] < p_Table[i]) {
-					temp = p_Table[i];
-					p_Table[i] = p_Table[j];
-					p_Table[j] = temp;
-				}
-			}
-		}val = m % 2 != 0 ? (p_Table[(m - 1) / 2] + p_Table[(m + 1) / 2]) / 2 : p_Table[m / 2];
-			//val = p_Table[m / 2];
-			return val;
+	for(j = i + 1; j < m; j++) {
+	if(p_Table[j] < p_Table[i]) {
+	temp = p_Table[i];
+	p_Table[i] = p_Table[j];
+	p_Table[j] = temp;
+	}
+		}
+		}
+	val = m % 2 != 0 ? (p_Table[(m - 1) / 2] + p_Table[(m + 1) / 2]) / 2 : p_Table[m / 2];
+	//val = p_Table[m / 2];
+	return val;
 	}
 	
     void addResults(std::vector <float> red,
@@ -677,16 +678,16 @@ class ImageHSVMinMaxMeanProcessor
     : public BalanceProcessorBase
 {
 private:
-    float _min[nComponentsHSV];
-    float _max[nComponentsHSV];
+    float _MIN[nComponentsHSV];
+    float _MAX[nComponentsHSV];
     float _sum[nComponentsHSV];
 
 public:
     ImageHSVMinMaxMeanProcessor(ImageEffect &instance)
         : BalanceProcessorBase(instance)
     {
-        std::fill( _min, _min + nComponentsHSV, +std::numeric_limits<float>::infinity() );
-        std::fill( _max, _max + nComponentsHSV, -std::numeric_limits<float>::infinity() );
+        std::fill( _MIN, _MIN + nComponentsHSV, +std::numeric_limits<float>::infinity() );
+        std::fill( _MAX, _MAX + nComponentsHSV, -std::numeric_limits<float>::infinity() );
         std::fill(_sum, _sum + nComponentsHSV, 0.);
     }
 
@@ -700,8 +701,8 @@ public:
     void getResults(Results *results) OVERRIDE FINAL
     {
         if (_count > 0) {
-            toRGB<float, nComponentsHSV, 1>(_min, &results->min);
-            toRGB<float, nComponentsHSV, 1>(_max, &results->max);
+            toRGB<float, nComponentsHSV, 1>(_MIN, &results->MIN);
+            toRGB<float, nComponentsHSV, 1>(_MAX, &results->MAX);
             float mean[nComponentsHSV];
             for (int c = 0; c < nComponentsHSV; ++c) {
                 mean[c] = _sum[c] / _count;
@@ -712,28 +713,28 @@ public:
 
 private:
 
-    void addResults(float min[nComponentsHSV],
-                    float max[nComponentsHSV],
+    void addResults(float MIN[nComponentsHSV],
+                    float MAX[nComponentsHSV],
                     float sum[nComponentsHSV],
                     unsigned long count)
     {
         for (int c = 0; c < nComponentsHSV - 1; ++c) {
-            _min[c] = (std::fmin(_min[c], min[c]));
-            _max[c] = (std::fmax(_max[c], max[c]));
+            _MIN[c] = (std::min(_MIN[c], MIN[c]));
+            _MAX[c] = (std::max(_MAX[c], MAX[c]));
             _sum[c] += sum[c];
         }
-        _min[2] = (std::fmin(_min[2], min[2])) / (float)maxValue;
-        _max[2] = (std::fmax(_max[2], max[2])) / (float)maxValue;
+        _MIN[2] = (std::min(_MIN[2], MIN[2])) / (float)maxValue;
+        _MAX[2] = (std::max(_MAX[2], MAX[2])) / (float)maxValue;
         _sum[2] += sum[2] / (float)maxValue;
         _count += count;
     }
 
     void multiThreadProcessImages(OfxRectI procWindow) OVERRIDE FINAL
     {
-        float min[nComponentsHSV], max[nComponentsHSV], sum[nComponentsHSV];
+        float MIN[nComponentsHSV], MAX[nComponentsHSV], sum[nComponentsHSV];
 
-        std::fill( min, min + nComponentsHSV, +std::numeric_limits<float>::infinity() );
-        std::fill( max, max + nComponentsHSV, -std::numeric_limits<float>::infinity() );
+        std::fill( MIN, MIN + nComponentsHSV, +std::numeric_limits<float>::infinity() );
+        std::fill( MAX, MAX + nComponentsHSV, -std::numeric_limits<float>::infinity() );
         std::fill(sum, sum + nComponentsHSV, 0.);
         unsigned long count = 0;
 
@@ -753,8 +754,8 @@ private:
                 pixToHSV<PIX, nComponents, maxValue>(dstPix, hsv);
                 for (int c = 0; c < nComponentsHSV; ++c) {
                     float v = hsv[c];
-                    min[c] = std::fmin(min[c], v);
-                    max[c] = std::fmax(max[c], v);
+                    MIN[c] = std::min(MIN[c], v);
+                    MAX[c] = std::max(MAX[c], v);
                     sumLine[c] += v;
                 }
                 dstPix += nComponents;
@@ -765,7 +766,7 @@ private:
             count += procWindow.x2 - procWindow.x1;
         }
 
-        addResults(min, max, sum, count);
+        addResults(MIN, MAX, sum, count);
     }
 };
 
@@ -851,7 +852,7 @@ private:
                 return (r + g + b) / 3;
             case eLuminanceMathMaximum:
 
-                return std::fmax(std::fmax(r, g), b);
+                return std::max(std::max(r, g), b);
             }
         }
 
@@ -1252,13 +1253,13 @@ BalancePlugin::setupAndProcess(ImageScaler& p_ImageScaler, const RenderArguments
     
     float lumaLimit = _lumaLimiter->getValueAtTime(args.time);
 
-	bool whiteBalance = m_White->getValueAtTime(args.time);
-	float WhiteBalance = whiteBalance ? 1.0f : 0.0f;
-	float PreserveLuma = preserveLuma ? 1.0f : 0.0f;
-	float LumaLimit = lumaLimit ? 1.0f : 0.0f;
-	float DisplayAlpha = displayAlpha ? 1.0f : 0.0f;
+    bool whiteBalance = m_White->getValueAtTime(args.time);
+    float WhiteBalance = whiteBalance ? 1.0f : 0.0f;
+    float PreserveLuma = preserveLuma ? 1.0f : 0.0f;
+    float LumaLimit = lumaLimit ? 1.0f : 0.0f;
+    float DisplayAlpha = displayAlpha ? 1.0f : 0.0f;
 	
-	bool gainBalance = balanceType_i == 0;
+    bool gainBalance = balanceType_i == 0;
     bool offsetBalance = balanceType_i == 1;
     bool liftBalance = balanceType_i == 2;
     
@@ -1609,8 +1610,8 @@ BalancePlugin::update(const Image* srcImg,
     if ( abort() ) {
         return;
     }
-    _statMin->setValueAtTime(time, results.min.r, results.min.g, results.min.b);
-    _statMax->setValueAtTime(time, results.max.r, results.max.g, results.max.b);
+    _statMin->setValueAtTime(time, results.MIN.r, results.MIN.g, results.MIN.b);
+    _statMax->setValueAtTime(time, results.MAX.r, results.MAX.g, results.MAX.b);
     _statMean->setValueAtTime(time, results.mean.r, results.mean.g, results.mean.b);
 }
 
@@ -1644,8 +1645,8 @@ BalancePlugin::updateHSV(const Image* srcImg,
     if ( abort() ) {
         return;
     }
-    _statHSVMin->setValueAtTime(time, results.min.r, results.min.g, results.min.b);
-    _statHSVMax->setValueAtTime(time, results.max.r, results.max.g, results.max.b);
+    _statHSVMin->setValueAtTime(time, results.MIN.r, results.MIN.g, results.MIN.b);
+    _statHSVMax->setValueAtTime(time, results.MAX.r, results.MAX.g, results.MAX.b);
     _statHSVMean->setValueAtTime(time, results.mean.r, results.mean.g, results.mean.b);
 }
 
@@ -2013,7 +2014,7 @@ BalancePluginFactory::describeInContext(ImageEffectDescriptor &desc,
                 page->addChild(*group);
             }
         }
-        // min
+        // MIN
         {
             Double3DParamDescriptor* param = desc.defineDouble3DParam(kParamStatMin);
             param->setLabel(kParamStatMinLabel);
@@ -2152,7 +2153,7 @@ BalancePluginFactory::describeInContext(ImageEffectDescriptor &desc,
             }
         }
 
-        // min
+        // MIN
         {
             Double3DParamDescriptor* param = desc.defineDouble3DParam(kParamStatHSVMin);
             param->setLabel(kParamStatHSVMinLabel);
