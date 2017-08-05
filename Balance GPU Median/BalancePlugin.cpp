@@ -1,5 +1,10 @@
 #include "BalancePlugin.h"
 
+#include <cstring>
+using std::string;
+#include <string> 
+#include <fstream>
+
 #include <stdio.h>
 #include <cmath>
 #include <cfloat> // DBL_MAX
@@ -36,12 +41,14 @@ using namespace OFX;
 #define kPluginName "Balance"
 #define kPluginGrouping "OpenFX Yo"
 #define kPluginDescription \
-	"White Balance Image: use eyedropper to sample pixel RGB values, or use mean values. " \
-    "Compute image statistics over the whole image or over a rectangle. " \
-    "The statistics can be computed either on RGBA components, in the HSV colorspace " \
-    "(which is the HSV colorspace with an additional L component from HSL), or the " \
-    "position and value of the pixels with the maximum and minimum luminance values can be computed.\n" \
-    "The color values of the minimum and maximum luma pixels for an image sequence "
+"------------------------------------------------------------------------------------------------------------------ \n" \
+"White Balance and Image Analysis. Use ColorPicker or Rectangle to sample pixel values. \n" \
+"Derive Min, Max, Mean RGB and HSV values, Median RGB values, and Min, Max Luma values \n" \
+"and their pixel coordinates. Apply White Balance with ColorPicker, Mean, or Median source \n" \
+"via Gain, Offset, or Lift. Option to Preserve Luma and/or apply luminance mask (Luma Limiter) \n" \
+"based on coefficients selected in Min/Max Luma section. Median sample region is atomatically \n" \
+"scaled down if it exceeds the safety limit.\n" \
+
 #define kPluginIdentifier "OpenFX.Yo.Balance"
 #define kPluginVersionMajor 2 
 #define kPluginVersionMinor 2 
@@ -120,7 +127,7 @@ enum BalanceTypeEnum
 
 #define kParamStatMedian "statMedian"
 #define kParamStatMedianLabel "Median"
-#define kParamStatMedianHint "The median average. The middle value. Very processor intensive. Use small sample area."
+#define kParamStatMedianHint "The median average. The middle value. Very processor intensive. Sample area restricted to limited size."
 
 #define kParamGroupHSV "HSV"
 
@@ -201,8 +208,10 @@ enum LuminanceMathEnum
 
 static bool gHostSupportsDefaultCoordinateSystem = true; // for kParamDefaultsNormalised
 
-#define POINT_TOLERANCE 6
-#define POINT_SIZE 5
+//#define POINT_TOLERANCE 6
+//#define POINT_SIZE 5
+
+#define MEDIAN_LIMIT 200
 
 #define kOfxFlagInfiniteMax INT_MAX
 #define kOfxFlagInfiniteMin INT_MIN
@@ -425,7 +434,7 @@ void ImageScaler::multiThreadProcessImages(OfxRectI p_ProcWindow)
 			float lumaACESAP0 = srcPix[0] * 0.3439664498f + srcPix[1] * 0.7281660966f + srcPix[2] * -0.0721325464f;
     		float lumaACESAP1 = srcPix[0] * 0.2722287168f + srcPix[1] * 0.6740817658f + srcPix[2] * 0.0536895174f;
 			float lumaAvg = (srcPix[0] + srcPix[1] + srcPix[2]) / 3.0f;
-			float lumaMax = fmax(fmax(srcPix[0], srcPix[1]), srcPix[2]);
+			float lumaMax = std::max(std::max(srcPix[0], srcPix[1]), srcPix[2]);
 			float luma = _LumaRec709[0] == 1.0f ? lumaRec709 : _LumaRec2020[0] == 1.0f ? lumaRec2020 : _LumaDCIP3[0] == 1.0f ? lumaDCIP3 : 
 			_LumaACESAP0[0] == 1.0f ? lumaACESAP0 : _LumaACESAP1[0] == 1.0f ? lumaACESAP1 : _LumaAvg[0] == 1.0f ? lumaAvg : lumaMax;
 			
@@ -1239,7 +1248,7 @@ BalancePlugin::setupAndProcess(ImageScaler& p_ImageScaler, const RenderArguments
     float lumaACESAP0 = BalanceR * 0.3439664498f + BalanceG * 0.7281660966f + BalanceB * -0.0721325464f;
     float lumaACESAP1 = BalanceR * 0.2722287168f + BalanceG * 0.6740817658f + BalanceB * 0.0536895174f;
     float lumaAvg = (BalanceR + BalanceG + BalanceB) / 3.0f;
-    float lumaMax = fmax(fmax(BalanceR, BalanceG), BalanceB);
+    float lumaMax = std::max(std::max(BalanceR, BalanceG), BalanceB);
     float lumaMathChoice = Rec709LuminanceMath ? lumaRec709 : Rec2020LuminanceMath ? lumaRec2020 : DCIP3LuminanceMath ? lumaDCIP3 : 
     ACESAP0LuminanceMath ? lumaACESAP0 : ACESAP1LuminanceMath ? lumaACESAP1 : AvgLuminanceMath ? lumaAvg : lumaMax;
     float lumaMath = lumaMathChoice / BalanceG;
@@ -1403,6 +1412,14 @@ void
 BalancePlugin::changedParam(const InstanceChangedArgs &args,
                                     const std::string &paramName)
 {
+    
+    if(paramName == "info")
+    {
+	
+	sendMessage(OFX::Message::eMessageMessage, "", string(kPluginDescription));
+	
+	}
+    
     if ( !kSupportsRenderScale && ( (args.renderScale.x != 1.) || (args.renderScale.y != 1.) ) ) {
         throwSuiteStatusException(kOfxStatFailed);
     }
@@ -1433,6 +1450,29 @@ BalancePlugin::changedParam(const InstanceChangedArgs &args,
         doAnalyzeRGB = true;
     }
     if (paramName == kParamAnalyzeFrameMed) {
+    	
+    	//_restrictToRectangle->setValue(true);
+    	double medx, medy, medLx, medLy;
+    	int medX, medY, medLX, medLY;
+    	//_size->getValueAtTime(time, medx, medy);
+    	//_btmLeft->getValueAtTime(time, medLx, medLy);
+    	int MedSq = MEDIAN_LIMIT * MEDIAN_LIMIT;
+    	int MedPlus = MEDIAN_LIMIT * 2;
+    	
+    	beginEditBlock("analyzeFrameMed");
+    	_restrictToRectangle->setValue(true);
+    	_size->getValueAtTime(time, medx, medy);
+    	_btmLeft->getValueAtTime(time, medLx, medLy);
+    	if (medx * medy > MedSq){
+    	medX = medx / (medx + medy) * MedPlus;
+    	medY = medy / (medx + medy) * MedPlus;
+    	medLX = medLx + (medx - medX) / 2;
+    	medLY = medLy + (medy - medY) / 2;
+    	_size->setValue(medX, medY);
+    	_btmLeft->setValue(medLX, medLY);
+    	}
+    	endEditBlock();
+    	
         doAnalyzeMed = true;
     }
     if (paramName == kParamAnalyzeFrameHSV) {
@@ -1886,6 +1926,12 @@ BalancePluginFactory::describeInContext(ImageEffectDescriptor &desc,
 		page->addChild(*boolParam);
 		
 		}
+		
+		{
+    	PushButtonParamDescriptor* param = desc.definePushButtonParam("info");
+    	param->setLabel("Info");
+    	page->addChild(*param);
+    	}
 		
 		// Luma Limit
 	{
