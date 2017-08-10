@@ -36,6 +36,16 @@ using std::string;
 using std::isnan;
 #endif
 
+#ifdef __APPLE__
+#define kPluginScript "/Library/Application Support/Blackmagic Design/DaVinci Resolve/LUT"
+#elif defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(_WIN64) || defined(__WIN64__) || defined(WIN64)
+#define kPluginScript "\ProgramData\Blackmagic Design\DaVinci Resolve\Support\LUT"
+#elif __linux__ 
+#define kPluginScript "/home/resolve/LUT"
+#else
+#define kPluginScript "Bananas"
+#endif
+
 using namespace OFX;
 
 #define kPluginName "Balance"
@@ -638,7 +648,6 @@ private:
 		}
 		}
 	val = m % 2 != 0 ? (p_Table[(m - 1) / 2] + p_Table[(m + 1) / 2]) / 2 : p_Table[m / 2];
-	//val = p_Table[m / 2];
 	return val;
 	}
 	
@@ -937,8 +946,6 @@ private:
     }
 };
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /** @brief The plugin that does our work */
 class BalancePlugin
@@ -973,6 +980,9 @@ public:
     	_preserveLuma = fetchBooleanParam("preserveLuma");
     	_lumaLimiter = fetchDoubleParam("lumaLimiter");
     	_displayAlpha = fetchBooleanParam("displayAlpha");
+    	m_Path = fetchStringParam("path");
+		m_Name = fetchStringParam("name");
+		m_Button1 = fetchPushButtonParam("button1");
 
         _btmLeft = fetchDouble2DParam(kParamRectangleInteractBtmLeft);
         _size = fetchDouble2DParam(kParamRectangleInteractSize);
@@ -1145,6 +1155,10 @@ private:
     Double3DParam* _maxLumaPixVal;
     Double2DParam* _minLumaPix;
     Double3DParam* _minLumaPixVal;
+    
+    StringParam* m_Path;
+    StringParam* m_Name;
+	PushButtonParam* m_Button1;
     
     RGBParam *m_Balance;
     Double3DParam* m_Rgb;
@@ -1451,11 +1465,8 @@ BalancePlugin::changedParam(const InstanceChangedArgs &args,
     }
     if (paramName == kParamAnalyzeFrameMed) {
     	
-    	//_restrictToRectangle->setValue(true);
     	double medx, medy, medLx, medLy;
     	int medX, medY, medLX, medLY;
-    	//_size->getValueAtTime(time, medx, medy);
-    	//_btmLeft->getValueAtTime(time, medLx, medLy);
     	int MedSq = MEDIAN_LIMIT * MEDIAN_LIMIT;
     	int MedPlus = MEDIAN_LIMIT * 2;
     	
@@ -1565,6 +1576,162 @@ BalancePlugin::changedParam(const InstanceChangedArgs &args,
 	 m_Hsl->setValue(H, S, L);
   		 
     }
+    
+    if(paramName == "button1")
+    {
+    
+    int sampleType_i;
+    _sampleType->getValueAtTime(args.time, sampleType_i);
+    SampleTypeEnum sampleType = (SampleTypeEnum)sampleType_i;
+    
+    bool ColorSample = sampleType_i == 0;
+    bool MeanSample = sampleType_i == 1;
+    bool MedianSample = sampleType_i == 2;
+    
+    int balanceType_i;
+    _balanceType->getValueAtTime(args.time, balanceType_i);
+    BalanceTypeEnum balanceType = (BalanceTypeEnum)balanceType_i;
+    
+    int luminanceMath_i;
+    _luminanceMath->getValueAtTime(args.time, luminanceMath_i);
+    LuminanceMathEnum luminanceMath = (LuminanceMathEnum)luminanceMath_i;
+    
+    bool Rec709LuminanceMath = luminanceMath_i == 0;
+    bool Rec2020LuminanceMath = luminanceMath_i == 1;
+    bool DCIP3LuminanceMath = luminanceMath_i == 2;
+    bool ACESAP0LuminanceMath = luminanceMath_i == 3;
+    bool ACESAP1LuminanceMath = luminanceMath_i == 4;
+    bool AvgLuminanceMath = luminanceMath_i == 5;
+    bool MaxLuminanceMath = luminanceMath_i == 6;
+    
+    RGBdub colorSample;
+    m_Balance->getValueAtTime(args.time, colorSample.r, colorSample.g, colorSample.b);
+    
+    RGBdub meanSample;
+    _statMean->getValueAtTime(args.time, meanSample.r, meanSample.g, meanSample.b);
+    
+    RGBdub medianSample;
+    _statMedian->getValueAtTime(args.time, medianSample.r, medianSample.g, medianSample.b);
+    
+    float BalanceR = ColorSample ? colorSample.r : MeanSample ? meanSample.r : medianSample.r;
+    float BalanceG = ColorSample ? colorSample.g : MeanSample ? meanSample.g : medianSample.g;
+    float BalanceB = ColorSample ? colorSample.b : MeanSample ? meanSample.b : medianSample.b;
+    
+    float rGain = BalanceG/BalanceR;
+    float bGain = BalanceG/BalanceB;
+    
+    float rOffset = BalanceG - BalanceR;
+    float bOffset = BalanceG - BalanceB;
+    
+    float lumaRec709 = BalanceR * 0.2126f + BalanceG * 0.7152f + BalanceB * 0.0722f;
+    float lumaRec2020 = BalanceR * 0.2627f + BalanceG * 0.6780f + BalanceB * 0.0593f;
+    float lumaDCIP3 = BalanceR * 0.209492f + BalanceG * 0.721595f + BalanceB * 0.0689131f;
+    float lumaACESAP0 = BalanceR * 0.3439664498f + BalanceG * 0.7281660966f + BalanceB * -0.0721325464f;
+    float lumaACESAP1 = BalanceR * 0.2722287168f + BalanceG * 0.6740817658f + BalanceB * 0.0536895174f;
+    float lumaAvg = (BalanceR + BalanceG + BalanceB) / 3.0f;
+    float lumaMax = std::max(std::max(BalanceR, BalanceG), BalanceB);
+    float lumaMathChoice = Rec709LuminanceMath ? lumaRec709 : Rec2020LuminanceMath ? lumaRec2020 : DCIP3LuminanceMath ? lumaDCIP3 : 
+    ACESAP0LuminanceMath ? lumaACESAP0 : ACESAP1LuminanceMath ? lumaACESAP1 : AvgLuminanceMath ? lumaAvg : lumaMax;
+    float lumaMath = lumaMathChoice / BalanceG;
+    
+    float rLift = (BalanceG - BalanceR) / (1.0f - BalanceR);
+    float bLift = (BalanceG - BalanceB) / (1.0f - BalanceB);
+    
+    bool preserveLuma = _preserveLuma->getValueAtTime(args.time);
+    bool displayAlpha = _displayAlpha->getValueAtTime(args.time);
+    
+    float lumaLimit = _lumaLimiter->getValueAtTime(args.time);
+
+    bool whiteBalance = m_White->getValueAtTime(args.time);
+    int WhiteBalance = whiteBalance ? 1 : 0;
+    int PreserveLuma = preserveLuma ? 1 : 0;
+    int DisplayAlpha = displayAlpha ? 1 : 0;
+	
+    bool gainBalance = balanceType_i == 0;
+    bool offsetBalance = balanceType_i == 1;
+    bool liftBalance = balanceType_i == 2;
+    
+    int GainBalance = gainBalance ? 1 : 0;
+    int OffsetBalance = offsetBalance ? 1 : 0;
+    int LiftBalance = liftBalance ? 1 : 0;
+    
+    int LumaRec709 = Rec709LuminanceMath ? 1 : 0;
+    int LumaRec2020 = Rec2020LuminanceMath ? 1 : 0;
+    int LumaDCIP3 = DCIP3LuminanceMath ? 1 : 0;
+    int LumaACESAP0 = ACESAP0LuminanceMath ? 1 : 0;
+    int LumaACESAP1 = ACESAP1LuminanceMath ? 1 : 0;
+    int LumaAvg = AvgLuminanceMath ? 1 : 0;
+    
+    string PATH;
+	m_Path->getValue(PATH);
+	
+	string NAME;
+	m_Name->getValue(NAME);
+	
+	OFX::Message::MessageReplyEnum reply = sendMessage(OFX::Message::eMessageQuestion, "", "Save " + NAME + ".dctl to " + PATH + "?");
+	if (reply == OFX::Message::eMessageReplyYes) {
+	
+	FILE * pFile;
+	
+	pFile = fopen ((PATH + "/" + NAME + ".dctl").c_str(), "w");
+	if (pFile != NULL) {
+    	
+	fprintf (pFile, "// BalancePlugin DCTL export\n" \
+	"\n" \
+	"__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B)\n" \
+	"{\n" \
+	"	float balGainR = %ff;\n" \
+	"	float balGainB = %ff; \n" \
+	"	float balOffsetR = %ff;\n" \
+	"	float balOffsetB = %ff;\n" \
+	"	float balLiftR = %ff;\n" \
+	"	float balLiftB = %ff;\n" \
+	"	float lumaMath = %ff;\n" \
+	"	float lumaLimit = %ff;\n" \
+	"	int GainBalance = %d;\n" \
+	"	int OffsetBalance = %d;\n" \
+	"	int WhiteBalance = %d;\n" \
+	"	int PreserveLuma = %d;\n" \
+	"	int LumaRec709 = %d;\n" \
+	"	int LumaRec2020 = %d;\n" \
+	"	int LumaDCIP3 = %d;\n" \
+	"	int LumaACESAP0 = %d;\n" \
+	"	int LumaACESAP1 = %d;\n" \
+	"	int LumaAvg = %d;\n" \
+	"\n" \
+	"	float lumaRec709 = p_R * 0.2126f + p_G * 0.7152f + p_B * 0.0722f;\n" \
+	"	float lumaRec2020 = p_R * 0.2627f + p_G * 0.6780f + p_B * 0.0593f;\n" \
+	"	float lumaDCIP3 = p_R * 0.209492f + p_G * 0.721595f + p_B * 0.0689131f;\n" \
+	"	float lumaACESAP0 = p_R * 0.3439664498f + p_G * 0.7281660966f + p_B * -0.0721325464f;\n" \
+	"	float lumaACESAP1 = p_R * 0.2722287168f + p_G * 0.6740817658f + p_B * 0.0536895174f;\n" \
+	"	float lumaAvg = (p_R + p_G + p_B) / 3.0f;\n" \
+	"	float lumaMax = _fmaxf(_fmaxf(p_R, p_G), p_B);\n" \
+	"	float luma = LumaRec709 == 1 ? lumaRec709 : LumaRec2020 == 1 ? lumaRec2020 : LumaDCIP3 == 1 ? lumaDCIP3 : \n" \
+	"	LumaACESAP0 == 1 ? lumaACESAP0 : LumaACESAP1 == 1 ? lumaACESAP1 : LumaAvg == 1 ? lumaAvg : lumaMax;\n" \
+	"\n" \
+	"	float alpha = lumaLimit > 1.0f ? luma + (1.0f - lumaLimit) * (1.0f - luma) : lumaLimit >= 0.0f ? (luma >= lumaLimit ? \n" \
+	"	1.0f : luma / lumaLimit) : lumaLimit < -1.0f ? (1.0f - luma) + (lumaLimit + 1.0f) * luma : luma <= (1.0f + lumaLimit) ? 1.0f : \n" \
+	"	(1.0f - luma) / (1.0f - (lumaLimit + 1.0f));\n" \
+	"	float Alpha = alpha > 1.0f ? 1.0f : alpha < 0.0f ? 0.0f : alpha;\n" \
+	"\n" \
+	"	float BalR = GainBalance == 1 ? p_R * balGainR : OffsetBalance == 1 ? p_R + balOffsetR : p_R + (balLiftR * (1.0f - p_R));\n" \
+	"	float BalB = GainBalance == 1 ? p_B * balGainB : OffsetBalance == 1 ? p_B + balOffsetB : p_B + (balLiftB * (1.0f - p_B));\n" \
+	"	float Red = WhiteBalance == 1 ? ( PreserveLuma == 1 ? BalR * lumaMath : BalR) : p_R;\n" \
+	"	float Green = WhiteBalance == 1 && PreserveLuma == 1 ? p_G * lumaMath : p_G;\n" \
+	"	float Blue = WhiteBalance == 1 ? ( PreserveLuma == 1 ? BalB * lumaMath : BalB) : p_B;\n" \
+	"\n" \
+	"	float r = Red * Alpha + p_R * (1.0f - Alpha);\n" \
+	"	float g = Green * Alpha + p_G * (1.0f - Alpha);\n" \
+	"	float b = Blue * Alpha + p_B * (1.0f - Alpha);\n" \
+	"	return make_float3(r, g, b);\n" \
+	"}\n", rGain, bGain, rOffset, bOffset, rLift, bLift, lumaMath, lumaLimit, GainBalance, OffsetBalance, WhiteBalance, PreserveLuma, 
+	LumaRec709, LumaRec2020, LumaDCIP3, LumaACESAP0, LumaACESAP1, LumaAvg);
+	fclose (pFile);
+	} else {
+     sendMessage(OFX::Message::eMessageError, "", string("Error: Cannot save " + NAME + ".dctl to " + PATH  + ". Check Permissions."));
+	}	
+	}
+	}
 
     }
 //} // BalancePlugin::changedParam
@@ -2433,11 +2600,43 @@ BalancePluginFactory::describeInContext(ImageEffectDescriptor &desc,
         }
 
     }
+    
+    {    
+    GroupParamDescriptor* script = desc.defineGroupParam("Script Export");
+    script->setOpen(false);
+    script->setHint("export DCTL script");
+      if (page) {
+            page->addChild(*script);
+            }
+    {
+    PushButtonParamDescriptor* param = desc.definePushButtonParam("button1");
+    param->setLabel("Export DCTL");
+    param->setHint("create DCTL version");
+    param->setParent(*script);
+    page->addChild(*param);
+    }
+    {
+	StringParamDescriptor* param = desc.defineStringParam("name");
+	param->setLabel("Name");
+	param->setHint("overwrites if the same");
+	param->setDefault("Balance");
+	param->setParent(*script);
+	page->addChild(*param);
+	}
+	{
+	StringParamDescriptor* param = desc.defineStringParam("path");
+	param->setLabel("Directory");
+	param->setHint("make sure it's the absolute path");
+	param->setStringType(eStringTypeFilePath);
+	param->setDefault(kPluginScript);
+	param->setFilePathExists(false);
+	param->setParent(*script);
+	page->addChild(*param);
+	}
+	}        
 } 
 
-
-ImageEffect*
-BalancePluginFactory::createInstance(OfxImageEffectHandle handle, ContextEnum /*context*/)
+ImageEffect* BalancePluginFactory::createInstance(OfxImageEffectHandle handle, ContextEnum /*context*/)
 {
     return new BalancePlugin(handle);
 }
