@@ -316,8 +316,8 @@ protected:
             b = p[2];
             Color::rgb_to_hsv(r, g, b, &hsv[0], &hsv[1], &hsv[2]);
             hsv[0] *= 360 / OFXS_HUE_CIRCLE;
-            float MIN = std::min(std::min(r, g), b);
-            float MAX = std::max(std::max(r, g), b);
+            float MIN = fmin(fmin(r, g), b);
+            float MAX = fmax(fmax(r, g), b);
         } else {
             hsv[0] = hsv[1] = hsv[2] = 0.0f;
         }
@@ -401,7 +401,7 @@ void ImageScaler::multiThreadProcessImages(OfxRectI p_ProcWindow)
 			float lumaACESAP0 = srcPix[0] * 0.3439664498f + srcPix[1] * 0.7281660966f + srcPix[2] * -0.0721325464f;
     		float lumaACESAP1 = srcPix[0] * 0.2722287168f + srcPix[1] * 0.6740817658f + srcPix[2] * 0.0536895174f;
 			float lumaAvg = (srcPix[0] + srcPix[1] + srcPix[2]) / 3.0f;
-			float lumaMax = std::max(std::max(srcPix[0], srcPix[1]), srcPix[2]);
+			float lumaMax = fmax(fmax(srcPix[0], srcPix[1]), srcPix[2]);
 			float luma = _LumaRec709[0] == 1.0f ? lumaRec709 : _LumaRec2020[0] == 1.0f ? lumaRec2020 : _LumaDCIP3[0] == 1.0f ? lumaDCIP3 : 
 			_LumaACESAP0[0] == 1.0f ? lumaACESAP0 : _LumaACESAP1[0] == 1.0f ? lumaACESAP1 : _LumaAvg[0] == 1.0f ? lumaAvg : lumaMax;
 			
@@ -514,8 +514,8 @@ private:
                     unsigned long count)
     {
         for (int c = 0; c < nComponents; ++c) {
-            _MIN[c] = (std::min(_MIN[c], MIN[c])) / (float)maxValue;
-            _MAX[c] = (std::max(_MAX[c], MAX[c])) / (float)maxValue;
+            _MIN[c] = (fmin(_MIN[c], MIN[c])) / (float)maxValue;
+            _MAX[c] = (fmax(_MAX[c], MAX[c])) / (float)maxValue;
             _sum[c] += sum[c] / (float)maxValue;
         }
         _count += count;
@@ -544,8 +544,8 @@ private:
             for (int x = procWindow.x1; x < procWindow.x2; ++x) {
                 for (int c = 0; c < nComponents; ++c) {
                     float v = *dstPix;
-                    MIN[c] = std::min(MIN[c], v);
-                    MAX[c] = std::max(MAX[c], v);
+                    MIN[c] = fmin(MIN[c], v);
+                    MAX[c] = fmax(MAX[c], v);
                     sumLine[c] += v;
                     ++dstPix;
                 }
@@ -694,12 +694,12 @@ private:
                     unsigned long count)
     {
         for (int c = 0; c < nComponentsHSV - 1; ++c) {
-            _MIN[c] = (std::min(_MIN[c], MIN[c]));
-            _MAX[c] = (std::max(_MAX[c], MAX[c]));
+            _MIN[c] = (fmin(_MIN[c], MIN[c]));
+            _MAX[c] = (fmax(_MAX[c], MAX[c]));
             _sum[c] += sum[c];
         }
-        _MIN[2] = (std::min(_MIN[2], MIN[2])) / (float)maxValue;
-        _MAX[2] = (std::max(_MAX[2], MAX[2])) / (float)maxValue;
+        _MIN[2] = (fmin(_MIN[2], MIN[2])) / (float)maxValue;
+        _MAX[2] = (fmax(_MAX[2], MAX[2])) / (float)maxValue;
         _sum[2] += sum[2] / (float)maxValue;
         _count += count;
     }
@@ -729,8 +729,8 @@ private:
                 pixToHSV<PIX, nComponents, maxValue>(dstPix, hsv);
                 for (int c = 0; c < nComponentsHSV; ++c) {
                     float v = hsv[c];
-                    MIN[c] = std::min(MIN[c], v);
-                    MAX[c] = std::max(MAX[c], v);
+                    MIN[c] = fmin(MIN[c], v);
+                    MAX[c] = fmax(MAX[c], v);
                     sumLine[c] += v;
                 }
                 dstPix += nComponents;
@@ -827,7 +827,7 @@ private:
                 return (r + g + b) / 3;
             case eLuminanceMathMaximum:
 
-                return std::max(std::max(r, g), b);
+                return fmax(fmax(r, g), b);
             }
         }
 
@@ -1219,7 +1219,7 @@ ScanCPUPlugin::setupAndProcess(ImageScaler& p_ImageScaler, const RenderArguments
     float lumaACESAP0 = ScanCPUR * 0.3439664498f + ScanCPUG * 0.7281660966f + ScanCPUB * -0.0721325464f;
     float lumaACESAP1 = ScanCPUR * 0.2722287168f + ScanCPUG * 0.6740817658f + ScanCPUB * 0.0536895174f;
     float lumaAvg = (ScanCPUR + ScanCPUG + ScanCPUB) / 3.0f;
-    float lumaMax = std::max(std::max(ScanCPUR, ScanCPUG), ScanCPUB);
+    float lumaMax = fmax(fmax(ScanCPUR, ScanCPUG), ScanCPUB);
     float lumaMathChoice = Rec709LuminanceMath ? lumaRec709 : Rec2020LuminanceMath ? lumaRec2020 : DCIP3LuminanceMath ? lumaDCIP3 : 
     ACESAP0LuminanceMath ? lumaACESAP0 : ACESAP1LuminanceMath ? lumaACESAP1 : AvgLuminanceMath ? lumaAvg : lumaMax;
     float lumaMath = lumaMathChoice / ScanCPUG;
@@ -1512,8 +1512,8 @@ ScanCPUPlugin::changedParam(const InstanceChangedArgs &args,
 	 
 	 m_Rgb->setValue(colorSample.r, colorSample.g, colorSample.b);
 	 
-	 float Min = std::min(colorSample.r, std::min(colorSample.g, colorSample.b));    
-	 float Max = std::max(colorSample.r, std::max(colorSample.g, colorSample.b));    
+	 float Min = fmin(colorSample.r, fmin(colorSample.g, colorSample.b));    
+	 float Max = fmax(colorSample.r, fmax(colorSample.g, colorSample.b));    
 	 float del_Max = Max - Min;
 		
 	 float L = (Max + Min) / 2.0f;
@@ -1583,7 +1583,7 @@ ScanCPUPlugin::changedParam(const InstanceChangedArgs &args,
     float lumaACESAP0 = ScanCPUR * 0.3439664498f + ScanCPUG * 0.7281660966f + ScanCPUB * -0.0721325464f;
     float lumaACESAP1 = ScanCPUR * 0.2722287168f + ScanCPUG * 0.6740817658f + ScanCPUB * 0.0536895174f;
     float lumaAvg = (ScanCPUR + ScanCPUG + ScanCPUB) / 3.0f;
-    float lumaMax = std::max(std::max(ScanCPUR, ScanCPUG), ScanCPUB);
+    float lumaMax = fmax(fmax(ScanCPUR, ScanCPUG), ScanCPUB);
     float lumaMathChoice = Rec709LuminanceMath ? lumaRec709 : Rec2020LuminanceMath ? lumaRec2020 : DCIP3LuminanceMath ? lumaDCIP3 : 
     ACESAP0LuminanceMath ? lumaACESAP0 : ACESAP1LuminanceMath ? lumaACESAP1 : AvgLuminanceMath ? lumaAvg : lumaMax;
     float lumaMath = lumaMathChoice / ScanCPUG;
