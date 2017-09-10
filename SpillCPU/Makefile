@@ -1,0 +1,8 @@
+PLUGINNAME = SpillCPUPlugin
+PLUGINOBJECTS = $(PLUGINNAME).o
+RESOURCES = OpenFX.Yo.SpillCPU.png
+ENABLEGPU := FALSE
+
+TOP_SRCDIR = ..
+include $(TOP_SRCDIR)/Makefile.master
+
