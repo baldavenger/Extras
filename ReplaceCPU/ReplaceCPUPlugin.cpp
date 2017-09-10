@@ -174,6 +174,8 @@ enum OutputAlphaEnum
 #define MIN_SATURATION 0.1
 #define MIN_VALUE 0.1
 
+#define M_PI 3.141592653
+
 // default fraction of the min-max interval to use as rolloff after rectangle analysis
 #define DEFAULT_RECTANGLE_ROLLOFF 0.5
 
@@ -1669,7 +1671,7 @@ ReplaceCPUPluginFactory::describeInContext(ImageEffectDescriptor& desc,
             } else {
                 gHostSupportsDefaultCoordinateSystem = false; // no multithread here, see kParamDefaultsNormalised
             }
-            param->setDefault(0.25, 0.25);
+            param->setDefault(0.4, 0.4);
             param->setRange(-DBL_MAX, -DBL_MAX, DBL_MAX, DBL_MAX); // Resolve requires range and display range or values are clamped to (-1,1)
             param->setDisplayRange(0, 0, 10000, 10000); // Resolve requires display range or values are clamped to (-1,1)
             param->setIncrement(1.);
@@ -1695,7 +1697,7 @@ ReplaceCPUPluginFactory::describeInContext(ImageEffectDescriptor& desc,
             } else {
                 gHostSupportsDefaultCoordinateSystem = false; // no multithread here, see kParamDefaultsNormalised
             }
-            param->setDefault(0.5, 0.5);
+            param->setDefault(0.2, 0.2);
             param->setRange(0., 0., DBL_MAX, DBL_MAX); // Resolve requires range and display range or values are clamped to (-1,1)
             param->setDisplayRange(0, 0, 10000, 10000); // Resolve requires display range or values are clamped to (-1,1)
             param->setIncrement(1.);
@@ -1863,7 +1865,7 @@ ReplaceCPUPluginFactory::describeInContext(ImageEffectDescriptor& desc,
             param->setHint(kParamSaturationRangeHint);
             param->setDimensionLabels("", ""); // the two values have the same meaning (they just define a range)
             param->setDefault(0., 1.);
-            param->setRange(0., 0., 1., 1.);
+            param->setRange(0., 0., DBL_MAX, DBL_MAX);
             param->setDisplayRange(0., 0., 1, 1);
             param->setUseHostNativeOverlayHandle(false);
             if (group) {
