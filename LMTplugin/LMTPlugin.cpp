@@ -34,6 +34,35 @@ using std::string;
 #define kSupportsMultiResolution false
 #define kSupportsMultipleClipPARs false
 
+#define kParamACESin "ACESin"
+#define kParamACESinLabel "Input"
+#define kParamACESinHint "type of ACES input"
+#define kParamACESinOptionACEScct "ACEScct"
+#define kParamACESinOptionACEScctHint "ACEScct log encode and AP1 primaries"
+#define kParamACESinOptionACES "ACES"
+#define kParamACESinOptionACESHint "Aces linear and AP0 primaries"
+
+#define kParamACESout "ACESout"
+#define kParamACESoutLabel "Output"
+#define kParamACESoutHint "type of ACES output"
+#define kParamACESoutOptionACEScct "ACEScct"
+#define kParamACESoutOptionACEScctHint "ACEScct log encode and AP1 primaries"
+#define kParamACESoutOptionACES "ACES"
+#define kParamACESoutOptionACESHint "Aces linear and AP0 primaries"
+
+
+enum ACESinEnum
+{
+    eACESinACEScct,
+    eACESinACES,
+};
+
+enum ACESoutEnum
+{
+    eACESoutACEScct,
+    eACESoutACES,
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -54,10 +83,12 @@ public:
     virtual void multiThreadProcessImages(OfxRectI p_ProcWindow);
     
     void setSrcImg(OFX::Image* p_SrcImg);
-    void setScales(float* p_Scale);
+    void setScales(int p_ACESin, int p_ACESout, float* p_Scale);
 
 private:
     OFX::Image* _srcImg;
+    int _acesIn;
+    int _acesOut;
     float _scale[31];
 };
 
@@ -66,7 +97,7 @@ LMT::LMT(OFX::ImageEffect& p_Instance)
 {
 }
 
-extern void RunCudaKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, float* p_Scale);
+extern void RunCudaKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, int p_ACESin, int p_ACESout, float* p_Scale);
 
 void LMT::processImagesCUDA()
 {
@@ -77,7 +108,7 @@ void LMT::processImagesCUDA()
     float* input = static_cast<float*>(_srcImg->getPixelData());
     float* output = static_cast<float*>(_dstImg->getPixelData());
 
-    RunCudaKernel(input, output, width, height, _scale);
+    RunCudaKernel(input, output, width, height, _acesIn, _acesOut, _scale);
 }
 /*
 extern void RunOpenCLKernel(void* p_CmdQ, int p_Width, int p_Height, const float* p_Input, float* p_Output);
@@ -135,8 +166,10 @@ void LMT::setSrcImg(OFX::Image* p_SrcImg)
     _srcImg = p_SrcImg;
 }
 
-void LMT::setScales(float* p_Scale)
+void LMT::setScales(int p_ACESin, int p_ACESout, float* p_Scale)
 {
+   _acesIn = p_ACESin;
+   _acesOut = p_ACESout;
    _scale[0] = p_Scale[0];
    _scale[1] = p_Scale[1];
    _scale[2] = p_Scale[2];
@@ -194,6 +227,8 @@ private:
     OFX::Clip* m_DstClip;
     OFX::Clip* m_SrcClip;
     
+    OFX::ChoiceParam* m_ACESin;
+    OFX::ChoiceParam* m_ACESout;
     OFX::DoubleParam* m_Scale1;
     OFX::DoubleParam* m_Scale2;
     OFX::DoubleParam* m_Scale3;
@@ -239,6 +274,8 @@ LMTPlugin::LMTPlugin(OfxImageEffectHandle p_Handle)
     m_DstClip = fetchClip(kOfxImageEffectOutputClipName);
     m_SrcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
     
+    m_ACESin = fetchChoiceParam(kParamACESin);
+    m_ACESout = fetchChoiceParam(kParamACESout);
     m_Scale1 = fetchDoubleParam("Scale1");
     m_Scale2 = fetchDoubleParam("Scale2");
     m_Scale3 = fetchDoubleParam("Scale3");
@@ -408,6 +445,16 @@ void LMTPlugin::setupAndProcess(LMT& p_LMT, const OFX::RenderArguments& p_Args)
         OFX::throwSuiteStatusException(kOfxStatErrValue);
     }
     
+    int acesIn_i;
+    m_ACESin->getValueAtTime(p_Args.time, acesIn_i);
+    ACESinEnum ACESinFilter = (ACESinEnum)acesIn_i;
+    int _acesIn = acesIn_i;
+    
+    int acesOut_i;
+    m_ACESout->getValueAtTime(p_Args.time, acesOut_i);
+    ACESoutEnum ACESoutFilter = (ACESoutEnum)acesOut_i;
+    int _acesOut = acesOut_i;
+    
     float _scale[31];
     
     _scale[0] = m_Scale1->getValueAtTime(p_Args.time);
@@ -453,7 +500,7 @@ void LMTPlugin::setupAndProcess(LMT& p_LMT, const OFX::RenderArguments& p_Args)
     p_LMT.setRenderWindow(p_Args.renderWindow);
 
     // Set the scales
-    p_LMT.setScales(_scale);
+    p_LMT.setScales(_acesIn, _acesOut, _scale);
 
     // Call the base class process member, this will call the derived templated process code
     p_LMT.process();
@@ -536,6 +583,28 @@ void LMTPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX
 
     // Make some pages and to things in
     PageParamDescriptor* page = p_Desc.definePageParam("Controls");
+    
+    ChoiceParamDescriptor *choiceparam = p_Desc.defineChoiceParam(kParamACESin);
+	choiceparam->setLabel(kParamACESinLabel);
+	choiceparam->setHint(kParamACESinHint);
+	assert(choiceparam->getNOptions() == (int)eACESinACEScct);
+	choiceparam->appendOption(kParamACESinOptionACEScct, kParamACESinOptionACEScctHint);
+	assert(choiceparam->getNOptions() == (int)eACESinACES);
+	choiceparam->appendOption(kParamACESinOptionACES, kParamACESinOptionACEScctHint);
+	choiceparam->setDefault( (int)eACESinACEScct);
+	choiceparam->setAnimates(false);
+    page->addChild(*choiceparam);
+    
+	choiceparam = p_Desc.defineChoiceParam(kParamACESout);
+	choiceparam->setLabel(kParamACESoutLabel);
+	choiceparam->setHint(kParamACESoutHint);
+	assert(choiceparam->getNOptions() == (int)eACESoutACEScct);
+	choiceparam->appendOption(kParamACESoutOptionACEScct, kParamACESoutOptionACEScctHint);
+	assert(choiceparam->getNOptions() == (int)eACESoutACES);
+	choiceparam->appendOption(kParamACESoutOptionACES, kParamACESoutOptionACEScctHint);
+	choiceparam->setDefault( (int)eACESoutACEScct);
+	choiceparam->setAnimates(false);
+    page->addChild(*choiceparam);
     
     DoubleParamDescriptor* param = defineScaleParam(p_Desc, "Scale1", "scale_C", "scale", 0);
     param->setDefault(0.7);

@@ -373,11 +373,11 @@ Aces = scale_C_at_H(Aces, 240.0f, 120.0f, 1.4f);
 return Aces;
 }
 
-__global__ void LMTKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, float p_Scale1, float p_Scale2, 
-float p_Scale3, float p_Scale4, float p_Scale5, float p_Scale6, float p_Scale7, float p_Scale8, float p_Scale9, float p_Scale10, 
-float p_Scale11, float p_Scale12, float p_Scale13, float p_Scale14, float p_Scale15, float p_Scale16, float p_Scale17, float p_Scale18, 
-float p_Scale19, float p_Scale20, float p_Scale21, float p_Scale22, float p_Scale23, float p_Scale24, float p_Scale25, float p_Scale26, 
-float p_Scale27, float p_Scale28, float p_Scale29, float p_Scale30, float p_Scale31)
+__global__ void LMTKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, int p_ACESin, int p_ACESout, 
+float p_Scale1, float p_Scale2, float p_Scale3, float p_Scale4, float p_Scale5, float p_Scale6, float p_Scale7, float p_Scale8, 
+float p_Scale9, float p_Scale10, float p_Scale11, float p_Scale12, float p_Scale13, float p_Scale14, float p_Scale15, float p_Scale16, 
+float p_Scale17, float p_Scale18, float p_Scale19, float p_Scale20, float p_Scale21, float p_Scale22, float p_Scale23, float p_Scale24, 
+float p_Scale25, float p_Scale26, float p_Scale27, float p_Scale28, float p_Scale29, float p_Scale30, float p_Scale31)
 {
    const int x = blockIdx.x * blockDim.x + threadIdx.x;
    const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -391,6 +391,24 @@ float p_Scale27, float p_Scale28, float p_Scale29, float p_Scale30, float p_Scal
 	Aces.x = p_Input[index + 0];
 	Aces.y = p_Input[index + 1];
 	Aces.z = p_Input[index + 2];
+	
+	switch (p_ACESin)
+    {
+    case 0:
+    {
+    Aces = ACEScct_to_ACES(Aces);
+    }
+        break;
+
+    case 1:
+    {
+    
+    }
+    	break;
+    
+    default: 
+			Aces = ACEScct_to_ACES(Aces);
+    }
 	
 	Aces = scale_C(Aces, p_Scale1);
 
@@ -414,6 +432,24 @@ float p_Scale27, float p_Scale28, float p_Scale29, float p_Scale30, float p_Scal
 	Aces = rotate_H_in_H(Aces, p_Scale26, p_Scale27, p_Scale28);
 
 	Aces = scale_C_at_H(Aces, p_Scale29, p_Scale30, p_Scale31);
+	
+	switch (p_ACESout)
+    {
+    case 0:
+    {
+    Aces = ACES_to_ACEScct(Aces);
+    }
+        break;
+
+    case 1:
+    {
+    
+    }
+    	break;
+    
+    default: 
+			Aces = ACES_to_ACEScct(Aces);
+    }
 																												   
 	p_Output[index + 0] = Aces.x;
 	p_Output[index + 1] = Aces.y;
@@ -422,12 +458,12 @@ float p_Scale27, float p_Scale28, float p_Scale29, float p_Scale30, float p_Scal
    }
 }
 
-void RunCudaKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, float* p_Scale)
+void RunCudaKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, int p_ACESin, int p_ACESout, float* p_Scale)
 {
     dim3 threads(128, 1, 1);
     dim3 blocks(((p_Width + threads.x - 1) / threads.x), p_Height, 1);
 
-    LMTKernel<<<blocks, threads>>>(p_Input, p_Output, p_Width, p_Height, p_Scale[0], p_Scale[1], 
+    LMTKernel<<<blocks, threads>>>(p_Input, p_Output, p_Width, p_Height, p_ACESin, p_ACESout, p_Scale[0], p_Scale[1], 
     p_Scale[2], p_Scale[3], p_Scale[4], p_Scale[5], p_Scale[6], p_Scale[7], p_Scale[8], p_Scale[9], p_Scale[10], 
     p_Scale[11], p_Scale[12], p_Scale[13], p_Scale[14], p_Scale[15], p_Scale[16], p_Scale[17], p_Scale[18], p_Scale[19], 
     p_Scale[20], p_Scale[21], p_Scale[22], p_Scale[23], p_Scale[24], p_Scale[25], p_Scale[26], p_Scale[27], p_Scale[28], 
