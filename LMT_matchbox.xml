@@ -1,0 +1,86 @@
+<<ShaderNodePreset SupportsAdaptiveDegradation="False" SupportsAction="False" SupportsTransition="False" SupportsTimeline="False" TimelineUseBack="False" MatteProvider="False" CommercialUsePermitted="True" ShaderType="Matchbox" SoftwareVersion="2017.0.0" LimitInputsToTexture="True" Version="1" Description="" Name="LMT_matchbox">
+   <Shader ClearColor="0, 0, 0, 0" GridSubdivision="1" OutputBitDepth="Output" Index="1">
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="0.7" Inc="0.01" Tooltip="" Row="0" Col="0" Page="0" Type="float" ChannelName="p_Scale1" DisplayName="scale_C" Name="p_Scale1">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01" Tooltip="" Row="1" Col="0" Page="0" Type="float" ChannelName="p_Scale2" DisplayName="slopeR" Name="p_Scale2">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01" Tooltip="" Row="2" Col="0" Page="0" Type="float" ChannelName="p_Scale3" DisplayName="slopeG" Name="p_Scale3">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="0.94" Inc="0.01" Tooltip="" Row="3" Col="0" Page="0" Type="float" ChannelName="p_Scale4" DisplayName="slopeB" Name="p_Scale4">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="-2.0" Default="0.0" Inc="0.01" Tooltip="" Row="4" Col="0" Page="0" Type="float" ChannelName="p_Scale5" DisplayName="offsetR" Name="p_Scale5">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="-2.0" Default="0.0" Inc="0.01" Tooltip="" Row="0" Col="1" Page="0" Type="float" ChannelName="p_Scale6" DisplayName="offsetG" Name="p_Scale6">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="-2.0" Default="0.02" Inc="0.01" Tooltip="" Row="1" Col="1" Page="0" Type="float" ChannelName="p_Scale7" DisplayName="offsetB" Name="p_Scale7">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01" Tooltip="" Row="2" Col="1" Page="0" Type="float" ChannelName="p_Scale8" DisplayName="powerR" Name="p_Scale8">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01" Tooltip="" Row="3" Col="1" Page="0" Type="float" ChannelName="p_Scale9" DisplayName="powerG" Name="p_Scale9">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01" Tooltip="" Row="4" Col="1" Page="0" Type="float" ChannelName="p_Scale10" DisplayName="powerB" Name="p_Scale10">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.0" Inc="0.01" Tooltip="" Row="0" Col="2" Page="0" Type="float" ChannelName="p_Scale11" DisplayName="sat" Name="p_Scale11">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.5" Inc="0.01" Tooltip="" Row="1" Col="2" Page="0" Type="float" ChannelName="p_Scale12" DisplayName="gamma_adjust_linear" Name="p_Scale12">
+      </Uniform>
+      <Uniform ResDependent="None" Max="1.0" Min="0.0" Default="0.18" Inc="0.01" Tooltip="" Row="2" Col="2" Page="0" Type="float" ChannelName="p_Scale13" DisplayName="pivot" Name="p_Scale13">
+      </Uniform>
+      <Uniform ResDependent="None" Max="360.0" Min="0.0" Default="0.0" Inc="0.01" Tooltip="" Row="3" Col="2" Page="0" Type="float" ChannelName="p_Scale14" DisplayName="hue1" Name="p_Scale14">
+      </Uniform>
+      <Uniform ResDependent="None" Max="180.0" Min="0.0" Default="30.0" Inc="0.01" Tooltip="" Row="4" Col="2" Page="0" Type="float" ChannelName="p_Scale15" DisplayName="range1" Name="p_Scale15">
+      </Uniform>
+      <Uniform ResDependent="None" Max="90.0" Min="-90.0" Default="5.0" Inc="0.01" Tooltip="" Row="0" Col="3" Page="0" Type="float" ChannelName="p_Scale16" DisplayName="shift1" Name="p_Scale16">
+      </Uniform>
+      <Uniform ResDependent="None" Max="360.0" Min="0.0" Default="80.0" Inc="0.01" Tooltip="" Row="1" Col="3" Page="0" Type="float" ChannelName="p_Scale17" DisplayName="hue2" Name="p_Scale17">
+      </Uniform>
+      <Uniform ResDependent="None" Max="180.0" Min="0.0" Default="60.0" Inc="0.01" Tooltip="" Row="2" Col="3" Page="0" Type="float" ChannelName="p_Scale18" DisplayName="range2" Name="p_Scale18">
+      </Uniform>
+      <Uniform ResDependent="None" Max="90.0" Min="-90.0" Default="-15.0" Inc="0.01" Tooltip="" Row="3" Col="3" Page="0" Type="float" ChannelName="p_Scale19" DisplayName="shift2" Name="p_Scale19">
+      </Uniform>
+      <Uniform ResDependent="None" Max="360.0" Min="0.0" Default="52.0" Inc="0.01" Tooltip="" Row="4" Col="3" Page="0" Type="float" ChannelName="p_Scale20" DisplayName="hue3" Name="p_Scale20">
+      </Uniform>
+      <Uniform ResDependent="None" Max="180.0" Min="0.0" Default="50.0" Inc="0.01" Tooltip="" Row="0" Col="0" Page="1" Type="float" ChannelName="p_Scale21" DisplayName="range3" Name="p_Scale21">
+      </Uniform>
+      <Uniform ResDependent="None" Max="90.0" Min="-90.0" Default="-14.0" Inc="0.01" Tooltip="" Row="1" Col="0" Page="1" Type="float" ChannelName="p_Scale22" DisplayName="shift3" Name="p_Scale22">
+      </Uniform>
+      <Uniform Index="0" NoInput="Error" Tooltip="" DisplayName="front" InputColor="67, 77, 83" Mipmaps="False" GL_TEXTURE_WRAP_T="GL_CLAMP_TO_EDGE" GL_TEXTURE_WRAP_S="GL_CLAMP_TO_EDGE" GL_TEXTURE_MAG_FILTER="GL_LINEAR" GL_TEXTURE_MIN_FILTER="GL_LINEAR" Type="sampler2D" Name="front">
+      </Uniform>
+      <Uniform ResDependent="None" Max="360.0" Min="0.0" Default="45.0" Inc="0.01" Tooltip="" Row="2" Col="0" Page="1" Type="float" ChannelName="p_Scale23" DisplayName="cHue1" Name="p_Scale23">
+      </Uniform>
+      <Uniform ResDependent="None" Max="180.0" Min="0.0" Default="40.0" Inc="0.01" Tooltip="" Row="3" Col="0" Page="1" Type="float" ChannelName="p_Scale24" DisplayName="cRange1" Name="p_Scale24">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.4" Inc="0.01" Tooltip="" Row="4" Col="0" Page="1" Type="float" ChannelName="p_Scale25" DisplayName="cScale1" Name="p_Scale25">
+      </Uniform>
+      <Uniform ResDependent="None" Max="360.0" Min="0.0" Default="190.0" Inc="0.01" Tooltip="" Row="0" Col="1" Page="1" Type="float" ChannelName="p_Scale26" DisplayName="hue4" Name="p_Scale26">
+      </Uniform>
+      <Uniform ResDependent="None" Max="180.0" Min="0.0" Default="40.0" Inc="0.01" Tooltip="" Row="1" Col="1" Page="1" Type="float" ChannelName="p_Scale27" DisplayName="range4" Name="p_Scale27">
+      </Uniform>
+      <Uniform ResDependent="None" Max="90.0" Min="-90.0" Default="30.0" Inc="0.01" Tooltip="" Row="2" Col="1" Page="1" Type="float" ChannelName="p_Scale28" DisplayName="shift4" Name="p_Scale28">
+      </Uniform>
+      <Uniform ResDependent="None" Max="360.0" Min="0.0" Default="240.0" Inc="0.01" Tooltip="" Row="3" Col="1" Page="1" Type="float" ChannelName="p_Scale29" DisplayName="cHue2" Name="p_Scale29">
+      </Uniform>
+      <Uniform ResDependent="None" Max="180.0" Min="0.0" Default="120.0" Inc="0.01" Tooltip="" Row="4" Col="1" Page="1" Type="float" ChannelName="p_Scale30" DisplayName="cRange2" Name="p_Scale30">
+      </Uniform>
+      <Uniform ResDependent="None" Max="2.0" Min="0.0" Default="1.4" Inc="0.01" Tooltip="" Row="0" Col="2" Page="1" Type="float" ChannelName="p_Scale31" DisplayName="cScale2" Name="p_Scale31">
+      </Uniform>
+   </Shader>
+   <Page Name="Page 1" Page="0">
+      <Col Name="Column 1" Col="0" Page="0">
+      </Col>
+      <Col Name="Column 2" Col="1" Page="0">
+      </Col>
+      <Col Name="Column 3" Col="2" Page="0">
+      </Col>
+      <Col Name="Column 4" Col="3" Page="0">
+      </Col>
+   </Page>
+   <Page Name="Page 2" Page="1">
+      <Col Name="Column 5" Col="0" Page="1">
+      </Col>
+      <Col Name="Column 6" Col="1" Page="1">
+      </Col>
+      <Col Name="Column 7" Col="2" Page="1">
+      </Col>
+   </Page>
+</ShaderNodePreset>
