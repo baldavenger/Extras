@@ -79,7 +79,7 @@ public:
     explicit LMT(OFX::ImageEffect& p_Instance);
 
     virtual void processImagesCUDA();
-    //virtual void processImagesOpenCL();
+    virtual void processImagesOpenCL();
     virtual void multiThreadProcessImages(OfxRectI p_ProcWindow);
     
     void setSrcImg(OFX::Image* p_SrcImg);
@@ -110,8 +110,8 @@ void LMT::processImagesCUDA()
 
     RunCudaKernel(input, output, width, height, _acesIn, _acesOut, _scale);
 }
-/*
-extern void RunOpenCLKernel(void* p_CmdQ, int p_Width, int p_Height, const float* p_Input, float* p_Output);
+
+extern void RunOpenCLKernel(void* p_CmdQ, const float* p_Input, float* p_Output, int p_Width, int p_Height, int p_ACESin, int p_ACESout, float* p_Scale);
 
 void LMT::processImagesOpenCL()
 {
@@ -122,9 +122,9 @@ void LMT::processImagesOpenCL()
     float* input = static_cast<float*>(_srcImg->getPixelData());
     float* output = static_cast<float*>(_dstImg->getPixelData());
 
-    RunOpenCLKernel(_pOpenCLCmdQ, width, height, input, output);
+    RunOpenCLKernel(_pOpenCLCmdQ, input, output, width, height, _acesIn, _acesOut, _scale);
 }
-*/
+
 void LMT::multiThreadProcessImages(OfxRectI p_ProcWindow)
 {
     for (int y = p_ProcWindow.y1; y < p_ProcWindow.y2; ++y)

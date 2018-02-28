@@ -1,4 +1,4 @@
-#include "SimplePlugin.h"
+#include "LMTPlugin.h"
 
 #include <cstring>
 #include <cmath>
@@ -20,19 +20,48 @@ using std::string;
 #define kPluginScript "/home/resolve/LUT"
 #endif
 
-#define kPluginName "Simple"
+#define kPluginName "LMT"
 #define kPluginGrouping "OpenFX Yo"
 #define kPluginDescription \
 "------------------------------------------------------------------------------------------------------------------ \n" \
-"Simple"
+"LMT"
 
-#define kPluginIdentifier "OpenFX.Yo.Simple"
+#define kPluginIdentifier "OpenFX.Yo.LMT"
 #define kPluginVersionMajor 2
 #define kPluginVersionMinor 1
 
 #define kSupportsTiles false
 #define kSupportsMultiResolution false
 #define kSupportsMultipleClipPARs false
+
+#define kParamACESin "ACESin"
+#define kParamACESinLabel "Input"
+#define kParamACESinHint "type of ACES input"
+#define kParamACESinOptionACEScct "ACEScct"
+#define kParamACESinOptionACEScctHint "ACEScct log encode and AP1 primaries"
+#define kParamACESinOptionACES "ACES"
+#define kParamACESinOptionACESHint "Aces linear and AP0 primaries"
+
+#define kParamACESout "ACESout"
+#define kParamACESoutLabel "Output"
+#define kParamACESoutHint "type of ACES output"
+#define kParamACESoutOptionACEScct "ACEScct"
+#define kParamACESoutOptionACEScctHint "ACEScct log encode and AP1 primaries"
+#define kParamACESoutOptionACES "ACES"
+#define kParamACESoutOptionACESHint "Aces linear and AP0 primaries"
+
+
+enum ACESinEnum
+{
+    eACESinACEScct,
+    eACESinACES,
+};
+
+enum ACESoutEnum
+{
+    eACESoutACEScct,
+    eACESoutACES,
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -44,30 +73,33 @@ namespace {
     };
 }
 
-class Simple : public OFX::ImageProcessor
+class LMT : public OFX::ImageProcessor
 {
 public:
-    explicit Simple(OFX::ImageEffect& p_Instance);
+    explicit LMT(OFX::ImageEffect& p_Instance);
 
     //virtual void processImagesCUDA();
     virtual void processImagesOpenCL();
     virtual void multiThreadProcessImages(OfxRectI p_ProcWindow);
     
     void setSrcImg(OFX::Image* p_SrcImg);
-    void setScales();
+    void setScales(int p_ACESin, int p_ACESout, float* p_Scale);
 
 private:
     OFX::Image* _srcImg;
+    int _acesIn;
+    int _acesOut;
+    float _scale[31];
 };
 
-Simple::Simple(OFX::ImageEffect& p_Instance)
+LMT::LMT(OFX::ImageEffect& p_Instance)
     : OFX::ImageProcessor(p_Instance)
 {
 }
 /*
-extern void RunCudaKernel(int p_Width, int p_Height, const float* p_Input, float* p_Output);
+extern void RunCudaKernel(const float* p_Input, float* p_Output, int p_Width, int p_Height, int p_ACESin, int p_ACESout, float* p_Scale);
 
-void Simple::processImagesCUDA()
+void LMT::processImagesCUDA()
 {
     const OfxRectI& bounds = _srcImg->getBounds();
     const int width = bounds.x2 - bounds.x1;
@@ -76,12 +108,12 @@ void Simple::processImagesCUDA()
     float* input = static_cast<float*>(_srcImg->getPixelData());
     float* output = static_cast<float*>(_dstImg->getPixelData());
 
-    RunCudaKernel(width, height, input, output);
+    RunCudaKernel(input, output, width, height, _acesIn, _acesOut, _scale);
 }
 */
-extern void RunOpenCLKernel(void* p_CmdQ, int p_Width, int p_Height, const float* p_Input, float* p_Output);
+extern void RunOpenCLKernel(void* p_CmdQ, const float* p_Input, float* p_Output, int p_Width, int p_Height, int p_ACESin, int p_ACESout, float* p_Scale);
 
-void Simple::processImagesOpenCL()
+void LMT::processImagesOpenCL()
 {
     const OfxRectI& bounds = _srcImg->getBounds();
     const int width = bounds.x2 - bounds.x1;
@@ -90,10 +122,10 @@ void Simple::processImagesOpenCL()
     float* input = static_cast<float*>(_srcImg->getPixelData());
     float* output = static_cast<float*>(_dstImg->getPixelData());
 
-    RunOpenCLKernel(_pOpenCLCmdQ, width, height, input, output);
+    RunOpenCLKernel(_pOpenCLCmdQ, input, output, width, height, _acesIn, _acesOut, _scale);
 }
 
-void Simple::multiThreadProcessImages(OfxRectI p_ProcWindow)
+void LMT::multiThreadProcessImages(OfxRectI p_ProcWindow)
 {
     for (int y = p_ProcWindow.y1; y < p_ProcWindow.y2; ++y)
     {
@@ -129,22 +161,54 @@ void Simple::multiThreadProcessImages(OfxRectI p_ProcWindow)
     }
 }
 
-void Simple::setSrcImg(OFX::Image* p_SrcImg)
+void LMT::setSrcImg(OFX::Image* p_SrcImg)
 {
     _srcImg = p_SrcImg;
 }
 
-void Simple::setScales()
+void LMT::setScales(int p_ACESin, int p_ACESout, float* p_Scale)
 {
-   
+   _acesIn = p_ACESin;
+   _acesOut = p_ACESout;
+   _scale[0] = p_Scale[0];
+   _scale[1] = p_Scale[1];
+   _scale[2] = p_Scale[2];
+   _scale[3] = p_Scale[3];
+   _scale[4] = p_Scale[4];
+   _scale[5] = p_Scale[5];
+   _scale[6] = p_Scale[6];
+   _scale[7] = p_Scale[7];
+   _scale[8] = p_Scale[8];
+   _scale[9] = p_Scale[9];
+   _scale[10] = p_Scale[10];
+   _scale[11] = p_Scale[11];
+   _scale[12] = p_Scale[12];
+   _scale[13] = p_Scale[13];
+   _scale[14] = p_Scale[14];
+   _scale[15] = p_Scale[15];
+   _scale[16] = p_Scale[16];
+   _scale[17] = p_Scale[17];
+   _scale[18] = p_Scale[18];
+   _scale[19] = p_Scale[19];
+   _scale[20] = p_Scale[20];   
+   _scale[21] = p_Scale[21];
+   _scale[22] = p_Scale[22];
+   _scale[23] = p_Scale[23];
+   _scale[24] = p_Scale[24];
+   _scale[25] = p_Scale[25];
+   _scale[26] = p_Scale[26];
+   _scale[27] = p_Scale[27];
+   _scale[28] = p_Scale[28];
+   _scale[29] = p_Scale[29];
+   _scale[30] = p_Scale[30];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /** @brief The plugin that does our work */
-class SimplePlugin : public OFX::ImageEffect
+class LMTPlugin : public OFX::ImageEffect
 {
 public:
-    explicit SimplePlugin(OfxImageEffectHandle p_Handle);
+    explicit LMTPlugin(OfxImageEffectHandle p_Handle);
 
     /* Override the render */
     virtual void render(const OFX::RenderArguments& p_Args);
@@ -156,12 +220,46 @@ public:
     virtual void changedParam(const OFX::InstanceChangedArgs& p_Args, const std::string& p_ParamName);
 
     /* Set up and run a processor */
-    void setupAndProcess(Simple &p_Simple, const OFX::RenderArguments& p_Args);
+    void setupAndProcess(LMT &p_LMT, const OFX::RenderArguments& p_Args);
 
 private:
     // Does not own the following pointers
     OFX::Clip* m_DstClip;
     OFX::Clip* m_SrcClip;
+    
+    OFX::ChoiceParam* m_ACESin;
+    OFX::ChoiceParam* m_ACESout;
+    OFX::DoubleParam* m_Scale1;
+    OFX::DoubleParam* m_Scale2;
+    OFX::DoubleParam* m_Scale3;
+    OFX::DoubleParam* m_Scale4;
+    OFX::DoubleParam* m_Scale5;
+    OFX::DoubleParam* m_Scale6;
+    OFX::DoubleParam* m_Scale7;
+    OFX::DoubleParam* m_Scale8;
+    OFX::DoubleParam* m_Scale9;
+    OFX::DoubleParam* m_Scale10;
+    OFX::DoubleParam* m_Scale11;
+    OFX::DoubleParam* m_Scale12;
+    OFX::DoubleParam* m_Scale13;
+    OFX::DoubleParam* m_Scale14;
+    OFX::DoubleParam* m_Scale15;
+    OFX::DoubleParam* m_Scale16;
+    OFX::DoubleParam* m_Scale17;
+    OFX::DoubleParam* m_Scale18;
+    OFX::DoubleParam* m_Scale19;
+    OFX::DoubleParam* m_Scale20;
+    OFX::DoubleParam* m_Scale21;
+    OFX::DoubleParam* m_Scale22;
+    OFX::DoubleParam* m_Scale23;
+    OFX::DoubleParam* m_Scale24;
+    OFX::DoubleParam* m_Scale25;
+    OFX::DoubleParam* m_Scale26;
+    OFX::DoubleParam* m_Scale27;
+    OFX::DoubleParam* m_Scale28;
+    OFX::DoubleParam* m_Scale29;
+    OFX::DoubleParam* m_Scale30;
+    OFX::DoubleParam* m_Scale31;
 
     OFX::StringParam* m_Path;
     OFX::StringParam* m_Name;
@@ -170,11 +268,45 @@ private:
 	OFX::PushButtonParam* m_Button2;
 };
 
-SimplePlugin::SimplePlugin(OfxImageEffectHandle p_Handle)
+LMTPlugin::LMTPlugin(OfxImageEffectHandle p_Handle)
     : ImageEffect(p_Handle)
 {
     m_DstClip = fetchClip(kOfxImageEffectOutputClipName);
     m_SrcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
+    
+    m_ACESin = fetchChoiceParam(kParamACESin);
+    m_ACESout = fetchChoiceParam(kParamACESout);
+    m_Scale1 = fetchDoubleParam("Scale1");
+    m_Scale2 = fetchDoubleParam("Scale2");
+    m_Scale3 = fetchDoubleParam("Scale3");
+    m_Scale4 = fetchDoubleParam("Scale4");
+    m_Scale5 = fetchDoubleParam("Scale5");
+    m_Scale6 = fetchDoubleParam("Scale6");
+    m_Scale7 = fetchDoubleParam("Scale7");
+    m_Scale8 = fetchDoubleParam("Scale8");
+    m_Scale9 = fetchDoubleParam("Scale9");
+    m_Scale10 = fetchDoubleParam("Scale10");
+    m_Scale11 = fetchDoubleParam("Scale11");
+    m_Scale12 = fetchDoubleParam("Scale12");
+    m_Scale13 = fetchDoubleParam("Scale13");
+    m_Scale14 = fetchDoubleParam("Scale14");
+    m_Scale15 = fetchDoubleParam("Scale15");
+    m_Scale16 = fetchDoubleParam("Scale16");
+    m_Scale17 = fetchDoubleParam("Scale17");
+    m_Scale18 = fetchDoubleParam("Scale18");
+    m_Scale19 = fetchDoubleParam("Scale19");
+    m_Scale20 = fetchDoubleParam("Scale20");
+    m_Scale21 = fetchDoubleParam("Scale21");
+    m_Scale22 = fetchDoubleParam("Scale22");
+    m_Scale23 = fetchDoubleParam("Scale23");
+    m_Scale24 = fetchDoubleParam("Scale24");
+    m_Scale25 = fetchDoubleParam("Scale25");
+    m_Scale26 = fetchDoubleParam("Scale26");
+    m_Scale27 = fetchDoubleParam("Scale27");
+    m_Scale28 = fetchDoubleParam("Scale28");
+    m_Scale29 = fetchDoubleParam("Scale29");
+    m_Scale30 = fetchDoubleParam("Scale30");
+    m_Scale31 = fetchDoubleParam("Scale31");
 
     m_Path = fetchStringParam("path");
 	m_Name = fetchStringParam("name");
@@ -184,12 +316,12 @@ SimplePlugin::SimplePlugin(OfxImageEffectHandle p_Handle)
 
 }
 
-void SimplePlugin::render(const OFX::RenderArguments& p_Args)
+void LMTPlugin::render(const OFX::RenderArguments& p_Args)
 {
     if ((m_DstClip->getPixelDepth() == OFX::eBitDepthFloat) && (m_DstClip->getPixelComponents() == OFX::ePixelComponentRGBA))
     {
-        Simple Simple(*this);
-        setupAndProcess(Simple, p_Args);
+        LMT LMT(*this);
+        setupAndProcess(LMT, p_Args);
     }
     else
     {
@@ -197,7 +329,7 @@ void SimplePlugin::render(const OFX::RenderArguments& p_Args)
     }
 }
 
-bool SimplePlugin::isIdentity(const OFX::IsIdentityArguments& p_Args, OFX::Clip*& p_IdentityClip, double& p_IdentityTime)
+bool LMTPlugin::isIdentity(const OFX::IsIdentityArguments& p_Args, OFX::Clip*& p_IdentityClip, double& p_IdentityTime)
 {
    
     
@@ -212,7 +344,7 @@ bool SimplePlugin::isIdentity(const OFX::IsIdentityArguments& p_Args, OFX::Clip*
     return false;
 }
 
-void SimplePlugin::changedParam(const OFX::InstanceChangedArgs& p_Args, const std::string& p_ParamName)
+void LMTPlugin::changedParam(const OFX::InstanceChangedArgs& p_Args, const std::string& p_ParamName)
 {
     
     if(p_ParamName == "info")
@@ -239,7 +371,7 @@ void SimplePlugin::changedParam(const OFX::InstanceChangedArgs& p_Args, const st
 	pFile = fopen ((PATH + "/" + NAME + ".dctl").c_str(), "w");
 	if (pFile != NULL) {
     	
-	fprintf (pFile, "// SimplePlugin DCTL export\n" \
+	fprintf (pFile, "// LMTPlugin DCTL export\n" \
 	"\n" \
 	"__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B)\n" \
 	"{\n" \
@@ -274,7 +406,7 @@ void SimplePlugin::changedParam(const OFX::InstanceChangedArgs& p_Args, const st
 	if (pFile != NULL) {
     	
 	fprintf (pFile, " Group {\n" \
-	" name Simple\n" \
+	" name LMT\n" \
 	" selected true\n" \
 	"}\n" \
 	" Input {\n" \
@@ -295,7 +427,7 @@ void SimplePlugin::changedParam(const OFX::InstanceChangedArgs& p_Args, const st
 }
 
 
-void SimplePlugin::setupAndProcess(Simple& p_Simple, const OFX::RenderArguments& p_Args)
+void LMTPlugin::setupAndProcess(LMT& p_LMT, const OFX::RenderArguments& p_Args)
 {
     // Get the dst image
     std::auto_ptr<OFX::Image> dst(m_DstClip->fetchImage(p_Args.time));
@@ -312,34 +444,78 @@ void SimplePlugin::setupAndProcess(Simple& p_Simple, const OFX::RenderArguments&
     {
         OFX::throwSuiteStatusException(kOfxStatErrValue);
     }
+    
+    int acesIn_i;
+    m_ACESin->getValueAtTime(p_Args.time, acesIn_i);
+    ACESinEnum ACESinFilter = (ACESinEnum)acesIn_i;
+    int _acesIn = acesIn_i;
+    
+    int acesOut_i;
+    m_ACESout->getValueAtTime(p_Args.time, acesOut_i);
+    ACESoutEnum ACESoutFilter = (ACESoutEnum)acesOut_i;
+    int _acesOut = acesOut_i;
+    
+    float _scale[31];
+    
+    _scale[0] = m_Scale1->getValueAtTime(p_Args.time);
+    _scale[1] = m_Scale2->getValueAtTime(p_Args.time);
+    _scale[2] = m_Scale3->getValueAtTime(p_Args.time);
+    _scale[3] = m_Scale4->getValueAtTime(p_Args.time);
+    _scale[4] = m_Scale5->getValueAtTime(p_Args.time);
+    _scale[5] = m_Scale6->getValueAtTime(p_Args.time);
+    _scale[6] = m_Scale7->getValueAtTime(p_Args.time);
+    _scale[7] = m_Scale8->getValueAtTime(p_Args.time);
+    _scale[8] = m_Scale9->getValueAtTime(p_Args.time);
+    _scale[9] = m_Scale10->getValueAtTime(p_Args.time);
+    _scale[10] = m_Scale11->getValueAtTime(p_Args.time);
+    _scale[11] = m_Scale12->getValueAtTime(p_Args.time);
+    _scale[12] = m_Scale13->getValueAtTime(p_Args.time);
+    _scale[13] = m_Scale14->getValueAtTime(p_Args.time);
+    _scale[14] = m_Scale15->getValueAtTime(p_Args.time);
+    _scale[15] = m_Scale16->getValueAtTime(p_Args.time);
+    _scale[16] = m_Scale17->getValueAtTime(p_Args.time);
+    _scale[17] = m_Scale18->getValueAtTime(p_Args.time);
+    _scale[18] = m_Scale19->getValueAtTime(p_Args.time);
+    _scale[19] = m_Scale20->getValueAtTime(p_Args.time);
+    _scale[20] = m_Scale21->getValueAtTime(p_Args.time);
+    _scale[21] = m_Scale22->getValueAtTime(p_Args.time);
+    _scale[22] = m_Scale23->getValueAtTime(p_Args.time);
+    _scale[23] = m_Scale24->getValueAtTime(p_Args.time);
+    _scale[24] = m_Scale25->getValueAtTime(p_Args.time);
+    _scale[25] = m_Scale26->getValueAtTime(p_Args.time);
+    _scale[26] = m_Scale27->getValueAtTime(p_Args.time);
+    _scale[27] = m_Scale28->getValueAtTime(p_Args.time);
+    _scale[28] = m_Scale29->getValueAtTime(p_Args.time);
+    _scale[29] = m_Scale30->getValueAtTime(p_Args.time);
+    _scale[30] = m_Scale31->getValueAtTime(p_Args.time);
 
     // Set the images
-    p_Simple.setDstImg(dst.get());
-    p_Simple.setSrcImg(src.get());
+    p_LMT.setDstImg(dst.get());
+    p_LMT.setSrcImg(src.get());
 
     // Setup OpenCL and CUDA Render arguments
-    p_Simple.setGPURenderArgs(p_Args);
+    p_LMT.setGPURenderArgs(p_Args);
 
     // Set the render window
-    p_Simple.setRenderWindow(p_Args.renderWindow);
+    p_LMT.setRenderWindow(p_Args.renderWindow);
 
     // Set the scales
-    p_Simple.setScales();
+    p_LMT.setScales(_acesIn, _acesOut, _scale);
 
     // Call the base class process member, this will call the derived templated process code
-    p_Simple.process();
+    p_LMT.process();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 using namespace OFX;
 
-SimplePluginFactory::SimplePluginFactory()
-    : OFX::PluginFactoryHelper<SimplePluginFactory>(kPluginIdentifier, kPluginVersionMajor, kPluginVersionMinor)
+LMTPluginFactory::LMTPluginFactory()
+    : OFX::PluginFactoryHelper<LMTPluginFactory>(kPluginIdentifier, kPluginVersionMajor, kPluginVersionMinor)
 {
 }
 
-void SimplePluginFactory::describe(OFX::ImageEffectDescriptor& p_Desc)
+void LMTPluginFactory::describe(OFX::ImageEffectDescriptor& p_Desc)
 {
     // Basic labels
     p_Desc.setLabels(kPluginName, kPluginName, kPluginName);
@@ -389,7 +565,7 @@ static DoubleParamDescriptor* defineScaleParam(OFX::ImageEffectDescriptor& p_Des
 }
 
 
-void SimplePluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
+void LMTPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
 {
     // Source clip only in the filter context
     // Create the mandated source clip
@@ -407,6 +583,245 @@ void SimplePluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, 
 
     // Make some pages and to things in
     PageParamDescriptor* page = p_Desc.definePageParam("Controls");
+    
+    ChoiceParamDescriptor *choiceparam = p_Desc.defineChoiceParam(kParamACESin);
+	choiceparam->setLabel(kParamACESinLabel);
+	choiceparam->setHint(kParamACESinHint);
+	assert(choiceparam->getNOptions() == (int)eACESinACEScct);
+	choiceparam->appendOption(kParamACESinOptionACEScct, kParamACESinOptionACEScctHint);
+	assert(choiceparam->getNOptions() == (int)eACESinACES);
+	choiceparam->appendOption(kParamACESinOptionACES, kParamACESinOptionACEScctHint);
+	choiceparam->setDefault( (int)eACESinACEScct);
+	choiceparam->setAnimates(false);
+    page->addChild(*choiceparam);
+    
+	choiceparam = p_Desc.defineChoiceParam(kParamACESout);
+	choiceparam->setLabel(kParamACESoutLabel);
+	choiceparam->setHint(kParamACESoutHint);
+	assert(choiceparam->getNOptions() == (int)eACESoutACEScct);
+	choiceparam->appendOption(kParamACESoutOptionACEScct, kParamACESoutOptionACEScctHint);
+	assert(choiceparam->getNOptions() == (int)eACESoutACES);
+	choiceparam->appendOption(kParamACESoutOptionACES, kParamACESoutOptionACEScctHint);
+	choiceparam->setDefault( (int)eACESoutACEScct);
+	choiceparam->setAnimates(false);
+    page->addChild(*choiceparam);
+    
+    DoubleParamDescriptor* param = defineScaleParam(p_Desc, "Scale1", "scale_C", "scale", 0);
+    param->setDefault(0.7);
+    param->setRange(0.0, 2.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale2", "slopeR", "scale", 0);
+    param->setDefault(1.0);
+    param->setRange(0.0, 2.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale3", "slopeG", "scale", 0);
+    param->setDefault(1.0);
+    param->setRange(0.0, 2.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale4", "slopeB", "scale", 0);
+    param->setDefault(0.94);
+    param->setRange(0.0, 2.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale5", "offsetR", "scale", 0);
+    param->setDefault(0.0);
+    param->setRange(-10.0, 10.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(-2.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale6", "offsetG", "scale", 0);
+    param->setDefault(0.0);
+    param->setRange(-10.0, 10.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(-2.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale7", "offsetB", "scale", 0);
+    param->setDefault(0.02);
+    param->setRange(-10.0, 10.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(-2.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale8", "powerR", "scale", 0);
+    param->setDefault(1.0);
+    param->setRange(0.0, 5.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 3.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale9", "powerG", "scale", 0);
+    param->setDefault(1.0);
+    param->setRange(0.0, 5.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 3.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale10", "powerB", "scale", 0);
+    param->setDefault(1.0);
+    param->setRange(0.0, 5.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 3.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale11", "sat", "scale", 0);
+    param->setDefault(1.0);
+    param->setRange(0.0, 3.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 2.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale12", "gamma_adjust_linear", "scale", 0);
+    param->setDefault(1.5);
+    param->setRange(0.0, 5.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 3.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale13", "pivot", "scale", 0);
+    param->setDefault(0.18);
+    param->setRange(0.0, 1.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 1.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale14", "rotate_H_in_Hue1", "scale", 0);
+    param->setDefault(0.0);
+    param->setRange(0.0, 360.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 360.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale15", "range1", "scale", 0);
+    param->setDefault(30.0);
+    param->setRange(0.0, 180.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 180.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale16", "shift1", "scale", 0);
+    param->setDefault(5.0);
+    param->setRange(-90.0, 90.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(-90.0, 90.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale17", "rotate_H_in_Hue2", "scale", 0);
+    param->setDefault(80.0);
+    param->setRange(0.0, 360.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 360.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale18", "range2", "scale", 0);
+    param->setDefault(60.0);
+    param->setRange(0.0, 180.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 180.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale19", "shift2", "scale", 0);
+    param->setDefault(-15.0);
+    param->setRange(-90.0, 90.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(-90.0, 90.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale20", "rotate_H_in_H3", "scale", 0);
+    param->setDefault(52.0);
+    param->setRange(0.0, 360.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 360.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale21", "range3", "scale", 0);
+    param->setDefault(50.0);
+    param->setRange(0.0, 180.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 180.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale22", "shift3", "scale", 0);
+    param->setDefault(-14.0);
+    param->setRange(-90.0, 90.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(-90.0, 90.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale23", "scale_C_at_Hue1", "scale", 0);
+    param->setDefault(45.0);
+    param->setRange(0.0, 360.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 360.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale24", "rangeC1", "scale", 0);
+    param->setDefault(40.0);
+    param->setRange(0.0, 180.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 180.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale25", "scaleC1", "scale", 0);
+    param->setDefault(1.4);
+    param->setRange(0.0, 5.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 3.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale26", "rotate_H_in_Hue4", "scale", 0);
+    param->setDefault(190.0);
+    param->setRange(0.0, 360.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 360.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale27", "range4", "scale", 0);
+    param->setDefault(40.0);
+    param->setRange(0.0, 180.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 180.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale28", "shift4", "scale", 0);
+    param->setDefault(30.0);
+    param->setRange(-90.0, 90.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(-90.0, 90.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale29", "scale_C_at_Hue2", "scale", 0);
+    param->setDefault(240.0);
+    param->setRange(0.0, 360.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 360.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale30", "rangeC2", "scale", 0);
+    param->setDefault(120.0);
+    param->setRange(0.0, 180.0);
+    param->setIncrement(0.01);
+    param->setDisplayRange(0.0, 180.0);
+    page->addChild(*param);
+    
+    param = defineScaleParam(p_Desc, "Scale31", "scaleC2", "scale", 0);
+    param->setDefault(1.4);
+    param->setRange(0.0, 5.0);
+    param->setIncrement(0.001);
+    param->setDisplayRange(0.0, 3.0);
+    page->addChild(*param);
 
     {
     PushButtonParamDescriptor* param = p_Desc.definePushButtonParam("info");
@@ -439,7 +854,7 @@ void SimplePluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, 
 	StringParamDescriptor* param = p_Desc.defineStringParam("name");
 	param->setLabel("Name");
 	param->setHint("overwrites if the same");
-	param->setDefault("Simple");
+	param->setDefault("LMT");
 	param->setParent(*script);
 	page->addChild(*param);
 	}
@@ -457,13 +872,13 @@ void SimplePluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, 
     
 }
 
-ImageEffect* SimplePluginFactory::createInstance(OfxImageEffectHandle p_Handle, ContextEnum /*p_Context*/)
+ImageEffect* LMTPluginFactory::createInstance(OfxImageEffectHandle p_Handle, ContextEnum /*p_Context*/)
 {
-    return new SimplePlugin(p_Handle);
+    return new LMTPlugin(p_Handle);
 }
 
 void OFX::Plugin::getPluginIDs(PluginFactoryArray& p_FactoryArray)
 {
-    static SimplePluginFactory SimplePlugin;
-    p_FactoryArray.push_back(&SimplePlugin);
+    static LMTPluginFactory LMTPlugin;
+    p_FactoryArray.push_back(&LMTPlugin);
 }

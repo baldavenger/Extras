@@ -3,9 +3,6 @@ const float X_BRK = 0.0078125f;
 const float Y_BRK = 0.155251141552511f;
 const float A = 10.5402377416545f;
 const float B = 0.0729055341958355f;
-//float3 RGB_2_YAB_MAT[3] = { {1.0f/3.0f, 1.0f/2.0f, 0.0f},
-//								  {1.0f/3.0f, -1.0f/4.0f, 0.433012701892219f}, 
-//								  {1.0f/3.0f, -1.0f/4.0f, -0.433012701892219f} };
 
 __device__ float clamp(float in, float low, float high)
 {
