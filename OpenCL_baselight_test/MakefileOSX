@@ -1,7 +1,0 @@
-CXXFLAGS = -I../../include
-OPTIMIZER = -g
-
-oclplugin.ofx : baselighttest.o
-	$(CXX) -bundle baselighttest.o -o baselighttest.ofx -framework OpenCL
-	mkdir -p baselighttest.ofx.bundle/Contents/MacOS/
-	cp baselighttest.ofx baselighttest.ofx.bundle/Contents/MacOS/
