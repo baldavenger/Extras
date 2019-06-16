@@ -42,6 +42,10 @@
          </PopupEntry>
          <PopupEntry Title="Sony_SLog3_SGamut3Cine" Value="13">
          </PopupEntry>
+         <PopupEntry Title="ADX10_to_ACES" Value="14">
+         </PopupEntry>
+         <PopupEntry Title="ADX16_to_ACES" Value="15">
+         </PopupEntry>
     </Uniform>
     <Uniform Default="0" ValueType="Popup"
 	     Tooltip="LMT"

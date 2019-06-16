@@ -286,8 +286,7 @@ vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0));
 return R;
 }
 
-float interpolate1D( mat2 table, float p)
-{
+float interpolate1D( mat2 table, float p) {
 if( p <= table[0][0] ) return table[0][1];
 if( p >= table[1][0] ) return table[1][1];
 if( table[0][0] <= p && p < table[1][0] ){
@@ -295,6 +294,18 @@ float s = (p - table[0][0]) / (table[1][0] - table[0][0]);
 return table[0][1] * ( 1.0 - s ) + table[1][1] * s;
 }
 return 0.0;
+}
+
+float interpolate1D11( float tableIN[11], float tableOUT[11], float p) {
+if( p <= tableIN[0] ) return tableOUT[0];
+if( p >= tableIN[10] ) return tableOUT[10];
+for( int i = 0; i < 10; ++i ){
+if( tableIN[i] <= p && p < tableIN[i+1] )
+{
+float s = (p - tableIN[i]) / (tableIN[i+1] - tableIN[i]);
+return tableOUT[i] * ( 1.0 - s ) + tableOUT[i+1] * s;
+}}
+return 0.0f;
 }
 
 mat3 RGBtoXYZ( Chromaticities N) {
@@ -1151,31 +1162,43 @@ Out.y = ACESproxy[1] / 4095.0;
 Out.z = ACESproxy[2] / 4095.0;
 return Out;
 }
-/*
+
 vec3 ADX10_to_ACES( vec3 ADX10)
 {
-vec2 LUT_1D[11] = vec2[11]( 
-vec2(-0.19, -6.0),
-vec2( 0.01, -2.721718645),
-vec2( 0.028, -2.521718645),
-vec2( 0.054, -2.321718645),
-vec2( 0.095, -2.121718645),
-vec2( 0.145, -1.921718645),
-vec2( 0.22, -1.721718645),
-vec2( 0.3, -1.521718645),
-vec2( 0.4, -1.321718645),
-vec2( 0.5, -1.121718645),
-vec2( 0.6, -0.926545676714876) );
+float[11] LUT_IN = float[11](
+-0.19,
+0.01,
+0.028,
+0.054,
+0.095,
+0.145,
+0.22,
+0.3,
+0.4,
+0.5,
+0.6);
+float[11] LUT_OUT = float[11](
+-6.0,
+-2.721718645,
+-2.521718645,
+-2.321718645,
+-2.121718645,
+-1.921718645,
+-1.721718645,
+-1.521718645,
+-1.321718645,
+-1.121718645,
+-0.926545676714876);
 vec3 adx;
 adx.x = ADX10.x * 1023.0;
 adx.y = ADX10.y * 1023.0;
 adx.z = ADX10.z * 1023.0;
 vec3 cdd = ( adx - 95.0) / 500.0;
-vec3 cid = cdd * CDD_TO_CID;
+vec3 cid = CDD_TO_CID * cdd;
 vec3 logE;
-if ( cid.x <= 0.6) logE.x = interpolate1D( LUT_1D, 11, cid.x);
-if ( cid.y <= 0.6) logE.y = interpolate1D( LUT_1D, 11, cid.y);
-if ( cid.z <= 0.6) logE.z = interpolate1D( LUT_1D, 11, cid.z);
+if ( cid.x <= 0.6) logE.x = interpolate1D11( LUT_IN, LUT_OUT, cid.x);
+if ( cid.y <= 0.6) logE.y = interpolate1D11( LUT_IN, LUT_OUT, cid.y);
+if ( cid.z <= 0.6) logE.z = interpolate1D11( LUT_IN, LUT_OUT, cid.z);
 if ( cid.x > 0.6) logE.x = ( 100.0 / 55.0) * cid.x - REF_PT;
 if ( cid.y > 0.6) logE.y = ( 100.0 / 55.0) * cid.y - REF_PT;
 if ( cid.z > 0.6) logE.z = ( 100.0 / 55.0) * cid.z - REF_PT;
@@ -1183,34 +1206,46 @@ vec3 exp;
 exp.x = pow( 10.0, logE.x);
 exp.y = pow( 10.0, logE.y);
 exp.z = pow( 10.0, logE.z);
-vec3 aces = exp * EXP_TO_ACES;
+vec3 aces = EXP_TO_ACES * exp;
 return aces;
 }
 
 vec3 ADX16_to_ACES( vec3 ADX16)
 {
-vec2 LUT_1D[11] = 
-( vec2(-0.19, -6.0),
-vec2( 0.01, -2.721718645),
-vec2( 0.028, -2.521718645),
-vec2( 0.054, -2.321718645),
-vec2( 0.095, -2.121718645),
-vec2( 0.145, -1.921718645),
-vec2( 0.22, -1.721718645),
-vec2( 0.3, -1.521718645),
-vec2( 0.4, -1.321718645),
-vec2( 0.5, -1.121718645),
-vec2( 0.6, -0.926545676714876) );
+float[11] LUT_IN = float[11](
+-0.19,
+0.01,
+0.028,
+0.054,
+0.095,
+0.145,
+0.22,
+0.3,
+0.4,
+0.5,
+0.6);
+float[11] LUT_OUT = float[11](
+-6.0,
+-2.721718645,
+-2.521718645,
+-2.321718645,
+-2.121718645,
+-1.921718645,
+-1.721718645,
+-1.521718645,
+-1.321718645,
+-1.121718645,
+-0.926545676714876);
 vec3 adx;
 adx.x = ADX16.x * 65535.0;
 adx.y = ADX16.y * 65535.0;
 adx.z = ADX16.z * 65535.0;
 vec3 cdd = ( adx - 1520.0) / 8000.0;
-vec3 cid = cdd * CDD_TO_CID;
+vec3 cid = CDD_TO_CID * cdd;
 vec3 logE;
-if ( cid.x <= 0.6) logE.x = interpolate1D( LUT_1D, 11, cid.x);
-if ( cid.y <= 0.6) logE.y = interpolate1D( LUT_1D, 11, cid.y);
-if ( cid.z <= 0.6) logE.z = interpolate1D( LUT_1D, 11, cid.z);
+if ( cid.x <= 0.6) logE.x = interpolate1D11( LUT_IN, LUT_OUT, cid.x);
+if ( cid.y <= 0.6) logE.y = interpolate1D11( LUT_IN, LUT_OUT, cid.y);
+if ( cid.z <= 0.6) logE.z = interpolate1D11( LUT_IN, LUT_OUT, cid.z);
 if ( cid.x > 0.6) logE.x = ( 100.0 / 55.0) * cid.x - REF_PT;
 if ( cid.y > 0.6) logE.y = ( 100.0 / 55.0) * cid.y - REF_PT;
 if ( cid.z > 0.6) logE.z = ( 100.0 / 55.0) * cid.z - REF_PT;
@@ -1218,10 +1253,10 @@ vec3 exp;
 exp.x = pow( 10.0, logE.x);
 exp.y = pow( 10.0, logE.y);
 exp.z = pow( 10.0, logE.z);
-vec3 aces = exp * EXP_TO_ACES;
+vec3 aces = EXP_TO_ACES * exp;
 return aces;
 }
-*/
+
 float normalizedLogCToRelativeExposure(float x)
 {
 if (x > 0.149659)
@@ -4432,7 +4467,7 @@ vec3 ACES = texture2D(front, uv).rgb;
 
 if(p_IDT != 0) ACES = p_IDT == 1 ? ACEScc_to_ACES(ACES) : p_IDT == 2 ? ACEScct_to_ACES(ACES) : p_IDT == 3 ? ACEScg_to_ACES(ACES) : p_IDT == 4 ? IDT_rec709(ACES) : p_IDT == 5 ? IDT_sRGB(ACES) : p_IDT == 6 ? 
 IDT_Alexa_v3_logC_EI800(ACES) : p_IDT == 7 ? IDT_REDWideGamutRGB_Log3G10(ACES) : p_IDT == 8 ? IDT_Panasonic_V35(ACES) : p_IDT == 9 ? IDT_Sony_SLog1_SGamut_10(ACES) : p_IDT == 10 ? 
-IDT_Sony_SLog2_SGamut_Daylight_10(ACES) : p_IDT == 11 ? IDT_Sony_SLog2_SGamut_Tungsten_10(ACES) : p_IDT == 12 ? IDT_Sony_SLog3_SGamut3(ACES) : IDT_Sony_SLog3_SGamut3Cine(ACES);
+IDT_Sony_SLog2_SGamut_Daylight_10(ACES) : p_IDT == 11 ? IDT_Sony_SLog2_SGamut_Tungsten_10(ACES) : p_IDT == 12 ? IDT_Sony_SLog3_SGamut3(ACES) : p_IDT == 13 ? IDT_Sony_SLog3_SGamut3Cine(ACES) : p_IDT == 14 ? ADX10_to_ACES(ACES) : ADX16_to_ACES(ACES);
 
 if(p_Exposure != 0.0) ACES = ACES * exp2(p_Exposure);
 if(p_LMT != 0) ACES = p_LMT == 1 ? LMT_PFE(ACES) : p_LMT == 2 ? LMT_Bleach(ACES) : LMT_BlueLightArtifactFix(ACES);
